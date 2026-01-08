@@ -61,14 +61,6 @@ function Login({ onNavigate }: LoginProps) {
       color: 'from-green-500 to-green-600',
       hoverColor: 'hover:from-green-600 hover:to-green-700',
     },
-    {
-      id: 'user' as UserRole,
-      label: 'User',
-      icon: <User className="w-6 h-6" />,
-      description: 'View and track donations',
-      color: 'from-gray-500 to-gray-600',
-      hoverColor: 'hover:from-gray-600 hover:to-gray-700',
-    },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -110,6 +102,11 @@ function Login({ onNavigate }: LoginProps) {
 
     // 3️⃣ Save auth context (store token & user_id if provided)
     login(authData.role, authData.token ?? null, authData.user_id ?? null);
+    
+    // 3️⃣a Store token in localStorage for API requests
+    if (authData.token) {
+      localStorage.setItem('token', authData.token);
+    }
 
     // 4️⃣ CREATE PROFILE ONLY DURING SIGNUP
     if (isSignup) {
@@ -158,8 +155,6 @@ function Login({ onNavigate }: LoginProps) {
     } else if (authData.role === "ngo") {
       onNavigate("ngo-dashboard");
     } else if (authData.role === "admin") {
-      onNavigate("dashboard");
-    } else {
       onNavigate("dashboard");
     }
 

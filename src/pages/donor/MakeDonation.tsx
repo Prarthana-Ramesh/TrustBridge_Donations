@@ -1,13 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowRight, ArrowLeft, CheckCircle, User, Phone, MapPin, Building2, CreditCard, Heart, FileText, Shield } from 'lucide-react';
+import { useAuth } from '../AuthContext';
 
 interface MakeDonationProps {
   onNavigate: (page: string) => void;
 }
 
 function MakeDonation({ onNavigate }: MakeDonationProps) {
+  const { token: ctxToken } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4;
+  const [ngoOptions, setNgoOptions] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     // Personal Details
@@ -83,21 +89,91 @@ function MakeDonation({ onNavigate }: MakeDonationProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate submission
-    alert('Donation submitted successfully! (UI Only - No backend)');
-    onNavigate('donor-dashboard');
+    submitDonation();
   };
 
-  const ngoOptions = [
-    'Education For All',
-    'Healthcare Foundation',
-    'Save The Children',
-    'Clean Water Initiative',
-    'Women Empowerment Trust',
-    'Food For All',
-    'Rural Development Society',
-    'Skill India Foundation',
-  ];
+  const submitDonation = async () => {
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      const authToken = ctxToken || localStorage.getItem('token');
+      if (!authToken) {
+        setError('Authentication token not found. Please log in again.');
+        setSubmitting(false);
+        return;
+      }
+
+      // Prepare donation data
+      const donationData = {
+        ngo_name: formData.ngo,
+        amount: parseFloat(formData.donationAmount),
+        purpose: formData.donationPurpose,
+      };
+
+      const response = await fetch('http://localhost:5000/api/donations/create', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(donationData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create donation');
+      }
+
+      const txnRef = data?.donation?.transaction_id || data?.donation?.donation_id || 'N/A';
+      alert(`Donation successful! Reference: ${txnRef}`);
+      onNavigate('donor-dashboard');
+    } catch (err) {
+      console.error('Error submitting donation:', err);
+      setError(err instanceof Error ? err.message : 'Failed to submit donation');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Fetch NGOs when component mounts
+  useEffect(() => {
+    const fetchNGOs = async () => {
+      try {
+        setLoading(true);
+        const authToken = ctxToken || localStorage.getItem('token');
+        
+        const response = await fetch('http://localhost:5000/api/ngo/list', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const ngoNames = data.ngos.map((ngo: any) => ngo.name);
+          setNgoOptions(ngoNames);
+        } else {
+          console.error('Failed to fetch NGOs from API');
+          // Fallback to empty list - user must enter manually or contact admin
+          setNgoOptions([]);
+          setError('Unable to load NGO list. Please try again or contact support.');
+        }
+      } catch (err) {
+        console.error('Error fetching NGOs:', err);
+        // Fallback to empty list
+        setNgoOptions([]);
+        setError('Unable to load NGO list. Please try again or contact support.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNGOs();
+  }, [ctxToken]);
 
   const purposeOptions = [
     'Education Support',
@@ -156,6 +232,14 @@ function MakeDonation({ onNavigate }: MakeDonationProps) {
 
         {/* Form Container */}
         <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
+          {/* Error Alert */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+              <p className="font-semibold">Error</p>
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit}>
             {/* Step 1: Personal & Identity Details */}
             {currentStep === 1 && (
@@ -887,10 +971,24 @@ function MakeDonation({ onNavigate }: MakeDonationProps) {
               ) : (
                 <button
                   type="submit"
-                  className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-semibold hover:from-green-700 hover:to-green-800 transition-all"
+                  disabled={submitting}
+                  className={`flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-semibold transition-all ${
+                    submitting
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:from-green-700 hover:to-green-800'
+                  }`}
                 >
-                  <CheckCircle className="w-5 h-5" />
-                  Submit Donation
+                  {submitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      Submit Donation
+                    </>
+                  )}
                 </button>
               )}
             </div>

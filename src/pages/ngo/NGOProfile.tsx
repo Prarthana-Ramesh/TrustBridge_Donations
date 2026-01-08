@@ -1,43 +1,89 @@
-import { Building2, Mail, Phone, MapPin, Globe, Edit, Save, X, CheckCircle, Users, Award, Target } from 'lucide-react';
-import { useState } from 'react';
+import { Building2, Mail, Phone, MapPin, Globe, Edit, Save, X, CheckCircle, Users, Award, Target, Loader, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../AuthContext';
 
 interface NGOProfileProps {
   onNavigate: (page: string) => void;
 }
 
+interface ProfileData {
+  ngoName: string;
+  registrationNumber: string;
+  registrationDate: string;
+  category: string;
+  mission: string;
+  vision: string;
+  contactEmail: string;
+  contactPhone: string;
+  address: string;
+  website: string;
+  established: string;
+  beneficiaries: string;
+  volunteers: string;
+  projects: string;
+  sectors: string[];
+  achievements: string[];
+  transparencyScore: number;
+  documents: Array<{ name: string; status: string; date: string }>;
+  stats?: {
+    totalDonations: number;
+    totalUtilized: number;
+    activeDonors: number;
+    utilizationPercent: number;
+  };
+}
+
 function NGOProfile({ }: NGOProfileProps) {
+  const { token } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [profileData, setProfileData] = useState({
-    ngoName: 'Hope Foundation India',
-    registrationNumber: 'NGO/2018/MH/12345',
-    registrationDate: '2018-03-15',
-    category: 'Social Welfare',
-    mission: 'To empower underprivileged communities through education, healthcare, and sustainable livelihood programs.',
-    vision: 'A society where every individual has equal opportunities to thrive and contribute to nation-building.',
-    contactEmail: 'contact@hopefoundation.org',
-    contactPhone: '+91-9876543210',
-    address: '123, Charity Street, Mumbai, Maharashtra - 400001',
-    website: 'www.hopefoundation.org',
-    established: '2018',
-    beneficiaries: '15,000+',
-    volunteers: '250+',
-    projects: '45',
-    sectors: ['Education', 'Healthcare', 'Women Empowerment', 'Child Welfare'],
-    achievements: [
-      '80% Trust Rating on GiveIndia',
-      'Best NGO Award 2024 - Maharashtra',
-      'ISO 9001:2015 Certified',
-      'FCRA Registered',
-    ],
-    transparencyScore: 92,
-    documents: [
-      { name: '12A Registration Certificate', status: 'Verified', date: '2018-03-15' },
-      { name: '80G Tax Exemption Certificate', status: 'Verified', date: '2018-04-20' },
-      { name: 'FCRA Registration', status: 'Verified', date: '2019-01-10' },
-      { name: 'Annual Report 2024', status: 'Uploaded', date: '2025-01-05' },
-      { name: 'Financial Audit Report 2024', status: 'Uploaded', date: '2025-01-08' },
-    ],
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [profileData, setProfileData] = useState<ProfileData>({
+    ngoName: '',
+    registrationNumber: '',
+    registrationDate: '',
+    category: '',
+    mission: '',
+    vision: '',
+    contactEmail: '',
+    contactPhone: '',
+    address: '',
+    website: '',
+    established: '',
+    beneficiaries: '',
+    volunteers: '',
+    projects: '',
+    sectors: [],
+    achievements: [],
+    transparencyScore: 0,
+    documents: [],
   });
+
+  useEffect(() => {
+    loadProfile();
+  }, [token]);
+
+  const loadProfile = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const headers: any = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch('/api/profile/ngo', { headers });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch profile');
+      }
+
+      const data = await response.json();
+      setProfileData(data);
+    } catch (err: any) {
+      setError(err.message || 'Server error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setProfileData({
@@ -46,10 +92,53 @@ function NGOProfile({ }: NGOProfileProps) {
     });
   };
 
-  const handleSave = () => {
-    alert('Profile updated successfully! (UI Only)');
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      const headers: any = {
+        'Content-Type': 'application/json',
+      };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch('/api/profile/ngo', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(profileData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      alert('Profile updated successfully!');
+      setIsEditing(false);
+      loadProfile();
+    } catch (err: any) {
+      alert('Error updating profile: ' + (err.message || 'Server error'));
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md">
+          <AlertCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-800 mb-2 text-center">Error Loading Profile</h2>
+          <p className="text-gray-600 text-center">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">

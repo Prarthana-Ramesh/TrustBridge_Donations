@@ -3,7 +3,7 @@ import Navbar from './components/Navbar';
 import DonorNavbar from './components/DonorNavbar';
 import NGONavbar from './components/NGONavbar';
 import Footer from './components/Footer';
-import Home from './pages/Home';
+import UserLanding from './pages/user/UserLanding';
 import Dashboard from './pages/Dashboard';
 import Donations from './pages/Donations';
 import Utilization from './pages/Utilization';
@@ -25,7 +25,6 @@ import FundingRequest from './pages/ngo/FundingRequest';
 import FundingResponses from './pages/ngo/FundingResponses';
 import NGOReports from './pages/ngo/NGOReports';
 import NGOProfile from './pages/ngo/NGOProfile';
-import UserLanding from './pages/user/UserLanding';
 import { useAuth } from './pages/AuthContext';
 
 function App() {
@@ -44,11 +43,6 @@ function App() {
     // Show login page
     if (currentPage === 'login') {
       return <Login onNavigate={handleNavigate} />;
-    }
-
-    // User role pages (public landing page)
-    if (userRole === 'user' && isAuthenticated) {
-      return <UserLanding onNavigate={handleNavigate} />;
     }
 
     // Donor role pages
@@ -108,7 +102,7 @@ function App() {
     // Default pages
     switch (currentPage) {
       case 'home':
-        return <Home />;
+        return <UserLanding onNavigate={handleNavigate} />;
       case 'dashboard':
         return <Dashboard />;
       case 'donations':
@@ -126,8 +120,7 @@ function App() {
 
   const isDonorPage = userRole === 'donor' && isAuthenticated && currentPage !== 'login';
   const isNGOPage = userRole === 'ngo' && isAuthenticated && currentPage !== 'login';
-  const isUserPage = userRole === 'user' && isAuthenticated && currentPage !== 'login';
-  const showNavbar = currentPage !== 'login' && !isUserPage; // Hide navbar for user landing page
+  const showNavbar = currentPage !== 'login';
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -141,7 +134,7 @@ function App() {
         )
       )}
       <main className="flex-grow">{renderPage()}</main>
-      {currentPage !== 'login' && !isUserPage && <Footer />}
+      {currentPage !== 'login' && <Footer />}
     </div>
   );
 }

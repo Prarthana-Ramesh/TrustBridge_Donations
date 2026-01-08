@@ -1,115 +1,78 @@
 import { Building2, Search, TrendingUp, MapPin, Filter } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../AuthContext';
 
 interface NGOListingProps {
   onNavigate: (page: string, ngoId?: number) => void;
 }
 
+interface NGO {
+  id: number;
+  name: string;
+  sector: string;
+  location: string;
+  description: string;
+  fundsReceived: number;
+  utilized: number;
+  beneficiaries: number;
+  projects: number;
+  rating: number;
+}
+
 function NGOListing({ onNavigate }: NGOListingProps) {
+  const { token: ctxToken } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSector, setSelectedSector] = useState('all');
+  const [ngos, setNgos] = useState<NGO[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Dummy NGO data
-  const ngos = [
-    {
-      id: 1,
-      name: 'Education For All',
-      sector: 'Education',
-      location: 'Mumbai, Maharashtra',
-      description: 'Providing quality education to underprivileged children across rural India',
-      fundsReceived: 450000,
-      utilized: 92,
-      beneficiaries: 1200,
-      projects: 15,
-      rating: 4.8,
-    },
-    {
-      id: 2,
-      name: 'Healthcare Foundation',
-      sector: 'Healthcare',
-      location: 'Delhi, NCR',
-      description: 'Delivering essential healthcare services to marginalized communities',
-      fundsReceived: 380000,
-      utilized: 88,
-      beneficiaries: 850,
-      projects: 12,
-      rating: 4.7,
-    },
-    {
-      id: 3,
-      name: 'Save The Children',
-      sector: 'Child Welfare',
-      location: 'Bangalore, Karnataka',
-      description: 'Protecting children from abuse and providing shelter and education',
-      fundsReceived: 320000,
-      utilized: 85,
-      beneficiaries: 650,
-      projects: 10,
-      rating: 4.9,
-    },
-    {
-      id: 4,
-      name: 'Clean Water Initiative',
-      sector: 'Environment',
-      location: 'Pune, Maharashtra',
-      description: 'Ensuring access to clean drinking water in rural and tribal areas',
-      fundsReceived: 280000,
-      utilized: 78,
-      beneficiaries: 2400,
-      projects: 8,
-      rating: 4.6,
-    },
-    {
-      id: 5,
-      name: 'Women Empowerment Trust',
-      sector: 'Women Welfare',
-      location: 'Kolkata, West Bengal',
-      description: 'Empowering women through skill development and financial independence',
-      fundsReceived: 250000,
-      utilized: 90,
-      beneficiaries: 540,
-      projects: 9,
-      rating: 4.8,
-    },
-    {
-      id: 6,
-      name: 'Food For All',
-      sector: 'Food Security',
-      location: 'Chennai, Tamil Nadu',
-      description: 'Fighting hunger by providing nutritious meals to the needy',
-      fundsReceived: 200000,
-      utilized: 95,
-      beneficiaries: 3200,
-      projects: 20,
-      rating: 4.9,
-    },
-    {
-      id: 7,
-      name: 'Rural Development Society',
-      sector: 'Rural Development',
-      location: 'Jaipur, Rajasthan',
-      description: 'Promoting sustainable livelihoods and infrastructure in rural areas',
-      fundsReceived: 180000,
-      utilized: 82,
-      beneficiaries: 980,
-      projects: 7,
-      rating: 4.5,
-    },
-    {
-      id: 8,
-      name: 'Skill India Foundation',
-      sector: 'Education',
-      location: 'Hyderabad, Telangana',
-      description: 'Providing vocational training and job placement for youth',
-      fundsReceived: 160000,
-      utilized: 87,
-      beneficiaries: 720,
-      projects: 11,
-      rating: 4.7,
-    },
-  ];
+  useEffect(() => {
+    const fetchNGOs = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  const sectors = ['all', 'Education', 'Healthcare', 'Child Welfare', 'Environment', 'Women Welfare', 'Food Security', 'Rural Development'];
+        const authToken = ctxToken || localStorage.getItem('token');
+        
+        const response = await fetch('http://localhost:5000/api/ngo/list', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {}),
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch NGOs');
+        }
+
+        const data = await response.json();
+        // Map backend data to frontend format
+        const mappedNGOs = data.ngos.map((ngo: any) => ({
+          id: ngo.ngo_id,
+          name: ngo.name,
+          sector: ngo.sector,
+          location: ngo.location,
+          description: ngo.description,
+          fundsReceived: ngo.fundsReceived,
+          utilized: ngo.utilized,
+          beneficiaries: ngo.beneficiaries,
+          projects: ngo.projects,
+          rating: ngo.rating,
+        }));
+        
+        setNgos(mappedNGOs);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching NGOs:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load NGOs');
+        setLoading(false);
+      }
+    };
+
+    fetchNGOs();
+  }, [ctxToken]);
 
   const filteredNGOs = ngos.filter((ngo) => {
     const matchesSearch = ngo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -118,9 +81,31 @@ function NGOListing({ onNavigate }: NGOListingProps) {
     return matchesSearch && matchesSector;
   });
 
+  // Extract unique sectors from the NGO data
+  const sectors = ['all', ...Array.from(new Set(ngos.map(ngo => ngo.sector)))];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading NGOs...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <div className="container mx-auto px-4 py-8">
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+            <p className="font-semibold">Error loading NGOs</p>
+            <p className="text-sm">{error}</p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Browse NGOs</h1>

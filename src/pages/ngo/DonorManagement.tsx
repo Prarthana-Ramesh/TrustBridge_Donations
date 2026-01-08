@@ -1,87 +1,105 @@
-import { Users, Search, Mail, Phone, Calendar, DollarSign, TrendingUp, Eye } from 'lucide-react';
-import { useState } from 'react';
+import { Users, Search, Mail, Phone, Calendar, DollarSign, TrendingUp, Eye, Loader, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../AuthContext';
 
 interface DonorManagementProps {
-  onNavigate: (page: string, donorId?: number) => void;
+  onNavigate: (page: string, donorId?: string) => void;
+}
+
+interface Donor {
+  donor_id: string;
+  name: string;
+  email: string;
+  phone: string;
+  total_contributions: number;
+  donation_count: number;
+  last_donation: string | null;
+  joined_date: string | null;
+  status: string;
+}
+
+interface DonationHistory {
+  donation_id: string;
+  amount: number;
+  date: string | null;
+  purpose: string;
+  utilized: number;
+}
+
+interface DonorDetails {
+  donor: {
+    donor_id: string;
+    name: string;
+    email: string;
+    phone: string;
+    joined_date: string | null;
+    total_contributions: number;
+    donation_count: number;
+  };
+  history: DonationHistory[];
 }
 
 function DonorManagement({ }: DonorManagementProps) {
+  const { token } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDonor, setSelectedDonor] = useState<number | null>(null);
+  const [selectedDonor, setSelectedDonor] = useState<string | null>(null);
+  const [donors, setDonors] = useState<Donor[]>([]);
+  const [donorDetails, setDonorDetails] = useState<DonorDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Dummy donor data
-  const donors = [
-    {
-      id: 1,
-      name: 'Rajesh Kumar',
-      email: 'rajesh.kumar@email.com',
-      phone: '+91 98765 43210',
-      totalContributions: 125000,
-      donationCount: 8,
-      lastDonation: '2025-12-20',
-      joinedDate: '2024-03-15',
-      status: 'Active',
-    },
-    {
-      id: 2,
-      name: 'Priya Sharma',
-      email: 'priya.sharma@email.com',
-      phone: '+91 98765 43211',
-      totalContributions: 85000,
-      donationCount: 5,
-      lastDonation: '2025-12-19',
-      joinedDate: '2024-06-20',
-      status: 'Active',
-    },
-    {
-      id: 3,
-      name: 'Amit Patel',
-      email: 'amit.patel@email.com',
-      phone: '+91 98765 43212',
-      totalContributions: 150000,
-      donationCount: 12,
-      lastDonation: '2025-12-18',
-      joinedDate: '2023-11-10',
-      status: 'Active',
-    },
-    {
-      id: 4,
-      name: 'Sunita Reddy',
-      email: 'sunita.reddy@email.com',
-      phone: '+91 98765 43213',
-      totalContributions: 65000,
-      donationCount: 4,
-      lastDonation: '2025-12-10',
-      joinedDate: '2024-08-05',
-      status: 'Active',
-    },
-    {
-      id: 5,
-      name: 'Vikram Singh',
-      email: 'vikram.singh@email.com',
-      phone: '+91 98765 43214',
-      totalContributions: 200000,
-      donationCount: 15,
-      lastDonation: '2025-12-15',
-      joinedDate: '2023-05-12',
-      status: 'Active',
-    },
-  ];
+  useEffect(() => {
+    loadDonors();
+  }, [token]);
 
-  // Donation history for selected donor
-  const getDonationHistory = (donorId: number) => {
-    const histories: { [key: number]: any[] } = {
-      1: [
-        { id: 1, amount: 25000, date: '2025-12-20', purpose: 'School Infrastructure', utilized: 45 },
-        { id: 2, amount: 20000, date: '2025-11-15', purpose: 'Medical Equipment', utilized: 100 },
-        { id: 3, amount: 15000, date: '2025-10-20', purpose: 'Student Scholarships', utilized: 88 },
-      ],
-      2: [
-        { id: 1, amount: 15000, date: '2025-12-19', purpose: 'Books and Materials', utilized: 60 },
-        { id: 2, amount: 30000, date: '2025-11-10', purpose: 'School Infrastructure', utilized: 95 },
-      ],
-    };
-    return histories[donorId] || [];
+  useEffect(() => {
+    if (selectedDonor) {
+      loadDonorDetails(selectedDonor);
+    }
+  }, [selectedDonor]);
+
+  const loadDonors = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const headers: any = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch('/api/donors/list', { headers });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch donors');
+      }
+
+      const data = await response.json();
+      setDonors(data.donors || []);
+    } catch (err: any) {
+      setError(err.message || 'Server error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDonorDetails = async (donorId: string) => {
+    setLoadingDetails(true);
+    try {
+      const headers: any = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch(`/api/donors/${donorId}/history`, { headers });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch donor details');
+      }
+
+      const data = await response.json();
+      setDonorDetails(data);
+    } catch (err: any) {
+      console.error('Error loading donor details:', err);
+    } finally {
+      setLoadingDetails(false);
+    }
   };
 
   const filteredDonors = donors.filter((donor) =>
@@ -89,7 +107,12 @@ function DonorManagement({ }: DonorManagementProps) {
     donor.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalDonorsAmount = donors.reduce((sum, d) => sum + d.totalContributions, 0);
+  const totalDonorsAmount = donors.reduce((sum, d) => sum + d.total_contributions, 0);
+  const totalDonations = donors.reduce((sum, d) => sum + d.donation_count, 0);
+  const avgDonation = totalDonations > 0 ? totalDonorsAmount / totalDonations : 0;
+  const activeThisMonth = donors.filter(d => 
+    d.last_donation && new Date(d.last_donation).getMonth() === new Date().getMonth()
+  ).length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -100,9 +123,16 @@ function DonorManagement({ }: DonorManagementProps) {
           <p className="text-gray-600">Manage relationships with your valued donors</p>
         </div>
 
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+            <p className="text-red-800">{error}</p>
+          </div>
+        )}
+
         {/* Summary Stats */}
         <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <Users className="w-5 h-5 text-blue-600" />
@@ -112,7 +142,7 @@ function DonorManagement({ }: DonorManagementProps) {
             <p className="text-2xl font-bold text-gray-800">{donors.length}</p>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-green-100 rounded-lg">
                 <DollarSign className="w-5 h-5 text-green-600" />
@@ -124,7 +154,7 @@ function DonorManagement({ }: DonorManagementProps) {
             </p>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-purple-100 rounded-lg">
                 <TrendingUp className="w-5 h-5 text-purple-600" />
@@ -132,20 +162,18 @@ function DonorManagement({ }: DonorManagementProps) {
               <h3 className="text-sm text-gray-600">Avg. Donation</h3>
             </div>
             <p className="text-2xl font-bold text-gray-800">
-              ₹{(totalDonorsAmount / donors.reduce((sum, d) => sum + d.donationCount, 0)).toFixed(0)}
+              ₹{avgDonation.toFixed(0)}
             </p>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-orange-100 rounded-lg">
                 <Calendar className="w-5 h-5 text-orange-600" />
               </div>
               <h3 className="text-sm text-gray-600">Active This Month</h3>
             </div>
-            <p className="text-2xl font-bold text-gray-800">
-              {donors.filter(d => d.lastDonation.startsWith('2025-12')).length}
-            </p>
+            <p className="text-2xl font-bold text-gray-800">{activeThisMonth}</p>
           </div>
         </div>
 
@@ -163,135 +191,160 @@ function DonorManagement({ }: DonorManagementProps) {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Donor List */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="p-4 bg-gradient-to-r from-blue-600 to-green-600 text-white">
-                <h2 className="text-xl font-bold">Donor List</h2>
-              </div>
-              <div className="divide-y divide-gray-200">
-                {filteredDonors.map((donor) => (
-                  <div
-                    key={donor.id}
-                    onClick={() => setSelectedDonor(donor.id)}
-                    className={`p-6 hover:bg-gray-50 transition-colors cursor-pointer ${
-                      selectedDonor === donor.id ? 'bg-blue-50' : ''
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-green-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                            {donor.name.charAt(0)}
+        {loading ? (
+          <div className="bg-white rounded-xl shadow-lg p-12 flex items-center justify-center">
+            <Loader className="w-8 h-8 text-blue-600 animate-spin" />
+            <span className="ml-3 text-gray-600">Loading donors...</span>
+          </div>
+        ) : (
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Donor List */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div className="p-4 bg-gradient-to-r from-blue-600 to-green-600 text-white">
+                  <h2 className="text-xl font-bold">Donor List ({filteredDonors.length})</h2>
+                </div>
+                {filteredDonors.length === 0 ? (
+                  <div className="p-12 text-center text-gray-500">
+                    No donors found
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-200">
+                    {filteredDonors.map((donor) => (
+                      <div
+                        key={donor.donor_id}
+                        onClick={() => setSelectedDonor(donor.donor_id)}
+                        className={`p-6 hover:bg-gray-50 transition-colors cursor-pointer ${
+                          selectedDonor === donor.donor_id ? 'bg-blue-50' : ''
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-green-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                {donor.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-semibold text-gray-800">{donor.name}</h3>
+                                <p className="text-sm text-gray-600 flex items-center gap-1">
+                                  <Mail className="w-4 h-4" />
+                                  {donor.email}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 mt-4">
+                              <div>
+                                <p className="text-xs text-gray-600">Total Contributions</p>
+                                <p className="text-lg font-bold text-green-600">
+                                  ₹{donor.total_contributions.toLocaleString()}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-600">Donations</p>
+                                <p className="text-lg font-bold text-gray-800">{donor.donation_count}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-600">Last Donation</p>
+                                <p className="text-sm font-medium text-gray-800">
+                                  {donor.last_donation ? new Date(donor.last_donation).toLocaleDateString() : 'N/A'}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-600">Member Since</p>
+                                <p className="text-sm font-medium text-gray-800">
+                                  {donor.joined_date ? new Date(donor.joined_date).toLocaleDateString() : 'N/A'}
+                                </p>
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-800">{donor.name}</h3>
-                            <p className="text-sm text-gray-600 flex items-center gap-1">
-                              <Mail className="w-4 h-4" />
-                              {donor.email}
-                            </p>
-                          </div>
+
+                          <button className="ml-4 p-2 hover:bg-blue-100 rounded-lg transition-colors">
+                            <Eye className="w-5 h-5 text-blue-600" />
+                          </button>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 mt-4">
-                          <div>
-                            <p className="text-xs text-gray-600">Total Contributions</p>
-                            <p className="text-lg font-bold text-green-600">
-                              ₹{donor.totalContributions.toLocaleString()}
+                        <div className="mt-4 flex items-center gap-2">
+                          <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                            {donor.status}
+                          </span>
+                          {donor.phone && (
+                            <a
+                              href={`tel:${donor.phone}`}
+                              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Phone className="w-4 h-4" />
+                              {donor.phone}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Donor Details Panel */}
+            <div className="lg:col-span-1">
+              {selectedDonor && donorDetails ? (
+                <div className="bg-white rounded-xl shadow-lg overflow-hidden sticky top-4">
+                  <div className="p-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white">
+                    <h2 className="text-xl font-bold">Donor Details</h2>
+                  </div>
+                  {loadingDetails ? (
+                    <div className="p-12 flex items-center justify-center">
+                      <Loader className="w-6 h-6 text-blue-600 animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="p-6">
+                      <div className="text-center mb-6">
+                        <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-green-500 rounded-full flex items-center justify-center text-white font-bold text-3xl mx-auto mb-3">
+                          {donorDetails.donor.name.charAt(0).toUpperCase()}
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-800">{donorDetails.donor.name}</h3>
+                        <p className="text-sm text-gray-600">{donorDetails.donor.email}</p>
+                      </div>
+
+                      <div className="space-y-4 mb-6">
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          <p className="text-xs text-gray-600 mb-1">Total Contributed</p>
+                          <p className="text-2xl font-bold text-green-600">
+                            ₹{donorDetails.donor.total_contributions.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="p-3 bg-gray-50 rounded-lg">
+                            <p className="text-xs text-gray-600 mb-1">Donations</p>
+                            <p className="text-xl font-bold text-gray-800">{donorDetails.donor.donation_count}</p>
+                          </div>
+                          <div className="p-3 bg-gray-50 rounded-lg">
+                            <p className="text-xs text-gray-600 mb-1">Avg. Amount</p>
+                            <p className="text-xl font-bold text-gray-800">
+                              ₹{donorDetails.donor.donation_count > 0 
+                                ? (donorDetails.donor.total_contributions / donorDetails.donor.donation_count).toFixed(0)
+                                : 0}
                             </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-600">Donations</p>
-                            <p className="text-lg font-bold text-gray-800">{donor.donationCount}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-600">Last Donation</p>
-                            <p className="text-sm font-medium text-gray-800">{donor.lastDonation}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-600">Member Since</p>
-                            <p className="text-sm font-medium text-gray-800">{donor.joinedDate}</p>
                           </div>
                         </div>
                       </div>
 
-                      <button className="ml-4 p-2 hover:bg-blue-100 rounded-lg transition-colors">
-                        <Eye className="w-5 h-5 text-blue-600" />
-                      </button>
-                    </div>
-
-                    <div className="mt-4 flex items-center gap-2">
-                      <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
-                        {donor.status}
-                      </span>
-                      <a
-                        href={`tel:${donor.phone}`}
-                        className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Phone className="w-4 h-4" />
-                        {donor.phone}
-                      </a>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Donor Details Panel */}
-          <div className="lg:col-span-1">
-            {selectedDonor ? (
-              <div className="bg-white rounded-xl shadow-lg overflow-hidden sticky top-4">
-                <div className="p-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white">
-                  <h2 className="text-xl font-bold">Donor Details</h2>
-                </div>
-                <div className="p-6">
-                  {(() => {
-                    const donor = donors.find(d => d.id === selectedDonor);
-                    const history = getDonationHistory(selectedDonor);
-                    return donor ? (
-                      <>
-                        <div className="text-center mb-6">
-                          <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-green-500 rounded-full flex items-center justify-center text-white font-bold text-3xl mx-auto mb-3">
-                            {donor.name.charAt(0)}
-                          </div>
-                          <h3 className="text-xl font-bold text-gray-800">{donor.name}</h3>
-                          <p className="text-sm text-gray-600">{donor.email}</p>
-                        </div>
-
-                        <div className="space-y-4 mb-6">
-                          <div className="p-3 bg-gray-50 rounded-lg">
-                            <p className="text-xs text-gray-600 mb-1">Total Contributed</p>
-                            <p className="text-2xl font-bold text-green-600">
-                              ₹{donor.totalContributions.toLocaleString()}
-                            </p>
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="p-3 bg-gray-50 rounded-lg">
-                              <p className="text-xs text-gray-600 mb-1">Donations</p>
-                              <p className="text-xl font-bold text-gray-800">{donor.donationCount}</p>
-                            </div>
-                            <div className="p-3 bg-gray-50 rounded-lg">
-                              <p className="text-xs text-gray-600 mb-1">Avg. Amount</p>
-                              <p className="text-xl font-bold text-gray-800">
-                                ₹{(donor.totalContributions / donor.donationCount).toFixed(0)}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="border-t border-gray-200 pt-4">
-                          <h4 className="font-semibold text-gray-800 mb-3">Donation History</h4>
+                      <div className="border-t border-gray-200 pt-4">
+                        <h4 className="font-semibold text-gray-800 mb-3">Donation History</h4>
+                        {donorDetails.history.length === 0 ? (
+                          <p className="text-center text-gray-500 py-4 text-sm">No donation history</p>
+                        ) : (
                           <div className="space-y-3 max-h-64 overflow-y-auto">
-                            {history.map((donation) => (
-                              <div key={donation.id} className="p-3 bg-gray-50 rounded-lg">
+                            {donorDetails.history.map((donation) => (
+                              <div key={donation.donation_id} className="p-3 bg-gray-50 rounded-lg">
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="font-semibold text-gray-800">
                                     ₹{donation.amount.toLocaleString()}
                                   </span>
-                                  <span className="text-xs text-gray-500">{donation.date}</span>
+                                  <span className="text-xs text-gray-500">
+                                    {donation.date ? new Date(donation.date).toLocaleDateString() : 'N/A'}
+                                  </span>
                                 </div>
                                 <p className="text-sm text-gray-600 mb-2">{donation.purpose}</p>
                                 <div className="flex items-center gap-2">
@@ -306,25 +359,25 @@ function DonorManagement({ }: DonorManagementProps) {
                               </div>
                             ))}
                           </div>
-                        </div>
-                      </>
-                    ) : null;
-                  })()}
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-xl shadow-lg p-12 text-center">
-                <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                  Select a Donor
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Click on a donor from the list to view their details and donation history
-                </p>
-              </div>
-            )}
+              ) : (
+                <div className="bg-white rounded-xl shadow-lg p-12 text-center">
+                  <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                    Select a Donor
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Click on a donor from the list to view their details and donation history
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -1,22 +1,134 @@
-import { BarChart3, PieChart, TrendingUp, Download } from 'lucide-react';
+import { BarChart3, PieChart, TrendingUp, Download, Loader } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+interface MonthlyTrend {
+  month: string;
+  donations: number;
+  utilization: number;
+}
+
+interface CategoryDist {
+  category: string;
+  percentage: number;
+  amount: number;
+  count: number;
+}
+
+interface TopProject {
+  project_name: string;
+  amount_utilized: number;
+  beneficiaries: number;
+  utilization_count: number;
+}
+
+interface ReportData {
+  monthly_trends: MonthlyTrend[];
+  category_distribution: CategoryDist[];
+  yearly_summary: {
+    total_donations: number;
+    total_utilized: number;
+    active_donors: number;
+    total_donations_count: number;
+    total_utilizations: number;
+    growth_rate: number;
+  };
+  top_projects: TopProject[];
+  impact_metrics: {
+    total_beneficiaries: number;
+    active_projects: number;
+    completed_projects: number;
+    active_ngos: number;
+  };
+  all_time_stats: {
+    total_donations: number;
+    total_utilized: number;
+  };
+}
 
 function Reports() {
-  const monthlyData = [
-    { month: 'Jan', donations: 85000, utilization: 72000 },
-    { month: 'Feb', donations: 92000, utilization: 78000 },
-    { month: 'Mar', donations: 105000, utilization: 89000 },
-    { month: 'Apr', donations: 98000, utilization: 85000 },
-    { month: 'May', donations: 115000, utilization: 95000 },
-    { month: 'Jun', donations: 125000, utilization: 102000 },
-  ];
+  const [data, setData] = useState<ReportData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const categoryDistribution = [
-    { category: 'Education', percentage: 35, color: 'bg-blue-500' },
-    { category: 'Healthcare', percentage: 28, color: 'bg-green-500' },
-    { category: 'Food Security', percentage: 22, color: 'bg-yellow-500' },
-    { category: 'Infrastructure', percentage: 15, color: 'bg-purple-500' },
-  ];
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/reports/overall');
+        if (!response.ok) {
+          throw new Error('Failed to fetch reports');
+        }
+        const reportData: ReportData = await response.json();
+        setData(reportData);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
 
+    fetchReports();
+  }, []);
+
+  const handleExportReport = () => {
+    if (!data) return;
+
+    const csv = [
+      ['TrustBridge Donations - Financial Report'],
+      ['Generated on:', new Date().toLocaleDateString('en-IN')],
+      [],
+      ['YEARLY SUMMARY'],
+      ['Total Donations', `₹${data.yearly_summary.total_donations.toLocaleString('en-IN')}`],
+      ['Total Utilized', `₹${data.yearly_summary.total_utilized.toLocaleString('en-IN')}`],
+      ['Active Donors', data.yearly_summary.active_donors],
+      ['Growth Rate', `${data.yearly_summary.growth_rate}%`],
+      [],
+      ['MONTHLY TRENDS'],
+      ['Month', 'Donations (₹)', 'Utilization (₹)'],
+      ...data.monthly_trends.map(m => [m.month, m.donations, m.utilization]),
+      [],
+      ['CATEGORY DISTRIBUTION'],
+      ['Category', 'Amount (₹)', 'Percentage'],
+      ...data.category_distribution.map(c => [c.category, c.amount, `${c.percentage}%`]),
+      [],
+      ['TOP PROJECTS'],
+      ['Project Name', 'Amount Utilized (₹)', 'Beneficiaries'],
+      ...data.top_projects.map(p => [p.project_name, p.amount_utilized, p.beneficiaries]),
+      [],
+      ['IMPACT METRICS'],
+      ['Total Beneficiaries', data.impact_metrics.total_beneficiaries],
+      ['Active Projects', data.impact_metrics.active_projects],
+      ['Completed Projects', data.impact_metrics.completed_projects],
+      ['Active NGOs', data.impact_metrics.active_ngos],
+    ].map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `financial-report-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
+        <Loader className="w-8 h-8 text-blue-600 animate-spin" />
+        <p className="ml-4 text-gray-600">Loading reports...</p>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
+        <p className="text-red-600">{error || 'Failed to load reports'}</p>
+      </div>
+    );
+  }
+
+  const monthlyData = data.monthly_trends;
   const maxAmount = Math.max(
     ...monthlyData.map((d) => Math.max(d.donations, d.utilization))
   );
@@ -33,7 +145,10 @@ function Reports() {
               Comprehensive analysis of donations and fund utilization
             </p>
           </div>
-          <button className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-green-600 text-white px-6 py-3 rounded-lg hover:shadow-lg transition-shadow">
+          <button
+            onClick={handleExportReport}
+            className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-green-600 text-white px-6 py-3 rounded-lg hover:shadow-lg transition-shadow"
+          >
             <Download className="w-5 h-5" />
             <span>Export Report</span>
           </button>
@@ -54,10 +169,10 @@ function Reports() {
                     <span className="text-gray-600">{data.month}</span>
                     <div className="flex space-x-4">
                       <span className="text-blue-600 font-semibold">
-                        ${(data.donations / 1000).toFixed(0)}K
+                        ₹{(data.donations / 100000).toFixed(1)}L
                       </span>
                       <span className="text-green-600 font-semibold">
-                        ${(data.utilization / 1000).toFixed(0)}K
+                        ₹{(data.utilization / 100000).toFixed(1)}L
                       </span>
                     </div>
                   </div>
@@ -102,32 +217,37 @@ function Reports() {
               <PieChart className="w-6 h-6 text-green-600" />
             </div>
             <div className="space-y-4">
-              {categoryDistribution.map((cat, index) => (
-                <div key={index}>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-800 font-medium">
-                      {cat.category}
-                    </span>
-                    <span className="text-gray-600 font-semibold">
-                      {cat.percentage}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-4">
-                    <div
-                      className={`${cat.color} h-4 rounded-full flex items-center justify-end pr-2`}
-                      style={{ width: `${cat.percentage}%` }}
-                    >
-                      <span className="text-white text-xs font-bold">
-                        {cat.percentage}%
+              {data.category_distribution.slice(0, 4).map((cat, index) => {
+                const colors = ['bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500'];
+                return (
+                  <div key={index}>
+                    <div className="flex justify-between mb-2">
+                      <span className="text-gray-800 font-medium">
+                        {cat.category}
+                      </span>
+                      <span className="text-gray-600 font-semibold">
+                        {cat.percentage.toFixed(1)}%
                       </span>
                     </div>
+                    <div className="w-full bg-gray-200 rounded-full h-4">
+                      <div
+                        className={`${colors[index] || 'bg-gray-500'} h-4 rounded-full flex items-center justify-end pr-2`}
+                        style={{ width: `${cat.percentage}%` }}
+                      >
+                        {cat.percentage >= 8 && (
+                          <span className="text-white text-xs font-bold">
+                            {cat.percentage.toFixed(0)}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="mt-6 p-4 bg-blue-50 rounded-lg">
               <p className="text-sm text-gray-700">
-                <strong>Total Amount Distributed:</strong> $987,450 across all
+                <strong>Total Amount Distributed:</strong> ₹{data.yearly_summary.total_donations.toLocaleString('en-IN', { maximumFractionDigits: 0 })} across all
                 categories
               </p>
             </div>
@@ -145,15 +265,21 @@ function Reports() {
             <div className="space-y-3">
               <div>
                 <p className="text-sm text-gray-600">Total Donations</p>
-                <p className="text-2xl font-bold text-blue-600">$1,245,890</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  ₹{(data.yearly_summary.total_donations / 100000).toFixed(2)}L
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Utilized</p>
-                <p className="text-2xl font-bold text-green-600">$987,450</p>
+                <p className="text-2xl font-bold text-green-600">
+                  ₹{(data.yearly_summary.total_utilized / 100000).toFixed(2)}L
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Growth Rate</p>
-                <p className="text-2xl font-bold text-gray-800">+18.5%</p>
+                <p className="text-2xl font-bold text-gray-800">
+                  {data.yearly_summary.growth_rate > 0 ? '+' : ''}{data.yearly_summary.growth_rate}%
+                </p>
               </div>
             </div>
           </div>
@@ -163,24 +289,16 @@ function Reports() {
               Top Performing Projects
             </h3>
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-700">Education Program</span>
-                <span className="text-sm font-semibold text-green-600">
-                  $342,450
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-700">Healthcare Initiative</span>
-                <span className="text-sm font-semibold text-green-600">
-                  $276,480
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-700">Food Distribution</span>
-                <span className="text-sm font-semibold text-green-600">
-                  $217,240
-                </span>
-              </div>
+              {data.top_projects.slice(0, 3).map((project, index) => (
+                <div key={index} className="flex justify-between items-center">
+                  <span className="text-sm text-gray-700 truncate pr-2">
+                    {project.project_name}
+                  </span>
+                  <span className="text-sm font-semibold text-green-600 whitespace-nowrap">
+                    ₹{(project.amount_utilized / 100000).toFixed(2)}L
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -192,17 +310,19 @@ function Reports() {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-700">Lives Impacted</span>
                 <span className="text-sm font-semibold text-blue-600">
-                  3,456
+                  {data.impact_metrics.total_beneficiaries.toLocaleString()}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-700">Projects Completed</span>
-                <span className="text-sm font-semibold text-blue-600">142</span>
+                <span className="text-sm font-semibold text-blue-600">
+                  {data.impact_metrics.completed_projects}
+                </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-700">Active Donors</span>
+                <span className="text-sm text-gray-700">Active NGOs</span>
                 <span className="text-sm font-semibold text-blue-600">
-                  1,234
+                  {data.impact_metrics.active_ngos}
                 </span>
               </div>
             </div>

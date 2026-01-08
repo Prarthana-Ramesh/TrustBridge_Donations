@@ -1,109 +1,79 @@
 import { DollarSign, Calendar, Building2, Filter, Download, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../AuthContext';
 
 interface DonationsPageProps {
   onNavigate: (page: string, donationId?: number) => void;
 }
 
+interface Donation {
+  id: number;
+  ngo: string;
+  amount: number;
+  date: string;
+  purpose: string;
+  status: string;
+  utilized: number;
+  transactionId?: string;
+}
+
+interface DonationSummary {
+  total_donated: number;
+  total_utilized: number;
+  total_count: number;
+}
+
 function DonationsPage({ onNavigate }: DonationsPageProps) {
+  const { token: ctxToken } = useAuth();
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [donations, setDonations] = useState<Donation[]>([]);
+  const [summary, setSummary] = useState<DonationSummary>({
+    total_donated: 0,
+    total_utilized: 0,
+    total_count: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Dummy donation data
-  const donations = [
-    {
-      id: 1,
-      ngo: 'Education For All',
-      amount: 15000,
-      date: '2025-12-15',
-      purpose: 'School Infrastructure',
-      status: 'Partially Utilized',
-      utilized: 78,
-      beneficiaries: 45,
-      transactionId: 'TXN001234567',
-    },
-    {
-      id: 2,
-      ngo: 'Healthcare Foundation',
-      amount: 25000,
-      date: '2025-12-10',
-      purpose: 'Medical Equipment',
-      status: 'Fully Utilized',
-      utilized: 100,
-      beneficiaries: 120,
-      transactionId: 'TXN001234568',
-    },
-    {
-      id: 3,
-      ngo: 'Clean Water Initiative',
-      amount: 10000,
-      date: '2025-12-05',
-      purpose: 'Water Purification Units',
-      status: 'Partially Utilized',
-      utilized: 65,
-      beneficiaries: 200,
-      transactionId: 'TXN001234569',
-    },
-    {
-      id: 4,
-      ngo: 'Save The Children',
-      amount: 20000,
-      date: '2025-11-28',
-      purpose: 'Child Education Program',
-      status: 'Fully Utilized',
-      utilized: 100,
-      beneficiaries: 85,
-      transactionId: 'TXN001234570',
-    },
-    {
-      id: 5,
-      ngo: 'Women Empowerment Trust',
-      amount: 12000,
-      date: '2025-11-20',
-      purpose: 'Skill Development',
-      status: 'In Progress',
-      utilized: 45,
-      beneficiaries: 30,
-      transactionId: 'TXN001234571',
-    },
-    {
-      id: 6,
-      ngo: 'Food For All',
-      amount: 18000,
-      date: '2025-11-15',
-      purpose: 'Community Kitchen',
-      status: 'Partially Utilized',
-      utilized: 82,
-      beneficiaries: 500,
-      transactionId: 'TXN001234572',
-    },
-    {
-      id: 7,
-      ngo: 'Education For All',
-      amount: 8000,
-      date: '2025-11-08',
-      purpose: 'Books and Stationery',
-      status: 'Fully Utilized',
-      utilized: 100,
-      beneficiaries: 60,
-      transactionId: 'TXN001234573',
-    },
-    {
-      id: 8,
-      ngo: 'Rural Development Society',
-      amount: 30000,
-      date: '2025-10-25',
-      purpose: 'Agricultural Training',
-      status: 'Partially Utilized',
-      utilized: 70,
-      beneficiaries: 150,
-      transactionId: 'TXN001234574',
-    },
-  ];
+  useEffect(() => {
+    const fetchDonations = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  const totalDonated = donations.reduce((sum, d) => sum + d.amount, 0);
-  const totalUtilized = donations.reduce((sum, d) => sum + (d.amount * d.utilized) / 100, 0);
-  const totalBeneficiaries = donations.reduce((sum, d) => sum + d.beneficiaries, 0);
+        const authToken = ctxToken || localStorage.getItem('token');
+        if (!authToken) {
+          setError('Authentication token not found. Please log in again.');
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch('http://localhost:5000/api/donations/donor/history', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch donations');
+        }
+
+        const data = await response.json();
+        setDonations(data.donations);
+        setSummary(data.summary);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching donations:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load donations');
+        setLoading(false);
+      }
+    };
+
+    fetchDonations();
+  }, [ctxToken]);
 
   const filteredDonations = donations.filter((donation) => {
     const matchesSearch =
@@ -130,9 +100,28 @@ function DonationsPage({ onNavigate }: DonationsPageProps) {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your donations...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       <div className="container mx-auto px-4 py-8">
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+            <p className="font-semibold">Error loading donations</p>
+            <p className="text-sm">{error}</p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">My Donations</h1>
@@ -149,7 +138,7 @@ function DonationsPage({ onNavigate }: DonationsPageProps) {
             </div>
             <h3 className="text-gray-600 text-sm font-medium mb-1">Total Donated</h3>
             <p className="text-3xl font-bold text-gray-800">
-              ₹{totalDonated.toLocaleString()}
+              ₹{summary.total_donated.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
             </p>
           </div>
 
@@ -161,10 +150,12 @@ function DonationsPage({ onNavigate }: DonationsPageProps) {
             </div>
             <h3 className="text-gray-600 text-sm font-medium mb-1">Total Utilized</h3>
             <p className="text-3xl font-bold text-gray-800">
-              ₹{totalUtilized.toLocaleString()}
+              ₹{summary.total_utilized.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
             </p>
             <p className="text-sm text-gray-600 mt-1">
-              {((totalUtilized / totalDonated) * 100).toFixed(1)}% of donations
+              {summary.total_donated > 0 
+                ? ((summary.total_utilized / summary.total_donated) * 100).toFixed(1)
+                : '0'}% of donations
             </p>
           </div>
 
@@ -174,8 +165,8 @@ function DonationsPage({ onNavigate }: DonationsPageProps) {
                 <Building2 className="w-6 h-6 text-purple-600" />
               </div>
             </div>
-            <h3 className="text-gray-600 text-sm font-medium mb-1">Beneficiaries Impacted</h3>
-            <p className="text-3xl font-bold text-gray-800">{totalBeneficiaries}</p>
+            <h3 className="text-gray-600 text-sm font-medium mb-1">Total Donations</h3>
+            <p className="text-3xl font-bold text-gray-800">{summary.total_count}</p>
           </div>
         </div>
 
@@ -256,19 +247,16 @@ function DonationsPage({ onNavigate }: DonationsPageProps) {
                         </div>
                         <div>
                           <p className="font-semibold text-gray-800">{donation.ngo}</p>
-                          <p className="text-xs text-gray-500">{donation.transactionId}</p>
+                          <p className="text-xs text-gray-500">{donation.transactionId || 'Txn ref unavailable'}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <p className="text-sm text-gray-800">{donation.purpose}</p>
-                      <p className="text-xs text-gray-500">
-                        {donation.beneficiaries} beneficiaries
-                      </p>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <p className="font-bold text-gray-800">
-                        ₹{donation.amount.toLocaleString()}
+                        ₹{donation.amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </p>
                     </td>
                     <td className="px-6 py-4">

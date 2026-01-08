@@ -80,8 +80,8 @@ function NGODashboard({ onNavigate }: NGODashboardProps) {
 
 
   const quickActions = [
-    { label: 'Manage Donors', page: 'ngo-donors', icon: <Users className="w-6 h-6" />, color: 'from-blue-500 to-blue-600' },
-    { label: 'View Donations', page: 'ngo-donations', icon: <DollarSign className="w-6 h-6" />, color: 'from-green-500 to-green-600' },
+    { label: 'Manage Donors', page: 'ngo-donor-management', icon: <Users className="w-6 h-6" />, color: 'from-blue-500 to-blue-600' },
+    { label: 'View Donations', page: 'ngo-donation-records', icon: <DollarSign className="w-6 h-6" />, color: 'from-green-500 to-green-600' },
     { label: 'Add Utilization', page: 'ngo-utilization', icon: <TrendingUp className="w-6 h-6" />, color: 'from-purple-500 to-purple-600' },
     { label: 'Request Funding', page: 'ngo-funding-request', icon: <Heart className="w-6 h-6" />, color: 'from-orange-500 to-orange-600' },
   ];
@@ -167,26 +167,32 @@ function NGODashboard({ onNavigate }: NGODashboardProps) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <Bell className="w-6 h-6" />
-              <h2 className="text-xl font-bold">Recent Notifications</h2>
+              <h2 className="text-xl font-bold">Latest Notifications</h2>
             </div>
             <span className="px-3 py-1 bg-white/20 rounded-full text-sm font-semibold">
-              {notifications.filter(n => !n.is_read).length} New
+              {notifications.filter(n => !n.is_read).length} Unread
             </span>
           </div>
-          <div className="space-y-2">
-            {notifications.slice(0, 3).map((notification: any) => (
-              <div
-                key={notification.notification_id || notification.id}
-                className={`p-3 rounded-lg ${
-                  notification.is_read ? 'bg-white/10' : 'bg-white/20'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <p className="text-sm flex-1">{notification.message}</p>
-                  <span className="text-xs text-blue-100 ml-3">{notification.created_at}</span>
+          <div className="space-y-3">
+            {notifications.length > 0 ? (
+              notifications.map((notification: any) => (
+                <div
+                  key={notification.notification_id || notification.id}
+                  className={`p-4 rounded-lg transition-colors ${
+                    notification.is_read ? 'bg-white/10' : 'bg-white/20 border border-white/30'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <p className="text-sm flex-1 leading-relaxed font-medium">{notification.message}</p>
+                    <span className="text-xs text-blue-100 ml-3 whitespace-nowrap">{notification.created_at}</span>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="p-4 text-center text-white/70 text-sm">
+                No recent notifications
               </div>
-            ))}
+            )}
           </div>
         </div>
 
@@ -216,7 +222,7 @@ function NGODashboard({ onNavigate }: NGODashboardProps) {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-gray-800">Recent Donations</h2>
               <button
-                onClick={() => onNavigate('ngo-donations')}
+                onClick={() => onNavigate('ngo-donation-records')}
                 className="text-blue-600 hover:text-blue-700 font-medium text-sm"
               >
                 View All →

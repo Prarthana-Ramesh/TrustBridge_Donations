@@ -6,6 +6,63 @@ from jwt_utils import decode_jwt
 ngo_bp = Blueprint("ngo", __name__, url_prefix="/api/ngo")
 
 
+@ngo_bp.route("/list", methods=["GET"])
+def get_ngo_list():
+    """Fetch all NGOs for listing/selection"""
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        # Fetch all NGOs with their statistics
+        cur.execute("""
+            SELECT 
+                n.ngo_id,
+                n.name,
+                n.category,
+                n.city,
+                n.state,
+                n.mission,
+                n.vision,
+                n.phone,
+                n.registration_number,
+                COALESCE(SUM(d.amount), 0) as funds_received,
+                COUNT(DISTINCT d.donor_id) as donor_count,
+                COUNT(DISTINCT d.donation_id) as donation_count
+            FROM ngos n
+            LEFT JOIN donations d ON n.ngo_id = d.ngo_id
+            GROUP BY n.ngo_id, n.name, n.category, n.city, n.state, n.mission, n.vision, n.phone, n.registration_number
+            ORDER BY funds_received DESC
+        """)
+        
+        ngos_data = cur.fetchall()
+        
+        ngo_list = []
+        for ngo in ngos_data:
+            ngo_list.append({
+                "ngo_id": ngo.get("ngo_id"),
+                "name": ngo.get("name"),
+                "sector": ngo.get("category") or "General",
+                "location": f"{ngo.get('city') or 'Unknown'}, {ngo.get('state') or 'India'}",
+                "description": ngo.get("mission") or "Making a difference in the community",
+                "fundsReceived": float(ngo.get("funds_received")) if ngo.get("funds_received") else 0,
+                "utilized": 85,  # Placeholder - would need to calculate from utilizations table
+                "beneficiaries": ngo.get("donor_count") or 0,
+                "projects": ngo.get("donation_count") or 0,
+                "rating": 4.5,  # Placeholder - would need rating system
+                "phone": ngo.get("phone"),
+                "registration_number": ngo.get("registration_number")
+            })
+
+        return jsonify({"ngos": ngo_list})
+
+    except Exception as e:
+        print(f"Error fetching NGO list: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
 @ngo_bp.route("/dashboard", methods=["GET"])
 def get_ngo_dashboard():
     ngo_id = request.args.get("ngo_id")
@@ -105,14 +162,14 @@ def get_ngo_dashboard():
     # utilization change: compare total utilized_funds now vs before the latest utilization entry
     try:
         cur.execute(
-            "SELECT created_at FROM utilizations WHERE ngo_id = %s ORDER BY created_at DESC LIMIT 1",
+            "SELECT utilized_at FROM utilizations WHERE ngo_id = %s ORDER BY utilized_at DESC LIMIT 1",
             (ngo_id,)
         )
         latest_util = cur.fetchone()
-        if latest_util and latest_util.get("created_at"):
-            latest_ts = latest_util.get("created_at")
+        if latest_util and latest_util.get("utilized_at"):
+            latest_ts = latest_util.get("utilized_at")
             cur.execute(
-                "SELECT COALESCE(SUM(amount_utilized),0) as total_before FROM utilizations WHERE ngo_id = %s AND created_at < %s",
+                "SELECT COALESCE(SUM(amount_utilized),0) as total_before FROM utilizations WHERE ngo_id = %s AND utilized_at < %s",
                 (ngo_id, latest_ts)
             )
             total_before = cur.fetchone()["total_before"] or 0
@@ -133,13 +190,37 @@ def get_ngo_dashboard():
     )
     recent_donations = cur.fetchall()
 
-    # Notifications for the NGO user
+    # Notifications for the NGO user with formatted messages
     user_id = ngo["user_id"]
     cur.execute(
-        "SELECT notification_id, type, message, created_at::text as created_at, is_read FROM notifications WHERE user_id = %s ORDER BY created_at DESC LIMIT 10",
+        "SELECT notification_id, type, message, created_at::text as created_at, is_read FROM notifications WHERE user_id = %s ORDER BY created_at DESC LIMIT 5",
         (user_id,)
     )
-    notifications = cur.fetchall()
+    raw_notifications = cur.fetchall()
+    
+    # Format notifications with sentence structures based on type
+    notifications = []
+    for notif in raw_notifications:
+        notification_type = notif.get("type", "").lower()
+        message = notif.get("message", "")
+        
+        # Create formatted message based on notification type
+        if notification_type == "donation":
+            formatted_message = f"🎁 {message}"
+        elif notification_type == "project_creation":
+            formatted_message = f"📋 {message}"
+        elif notification_type == "fund_utilization":
+            formatted_message = f"💰 {message}"
+        else:
+            formatted_message = f"📢 {message}"
+        
+        notifications.append({
+            "notification_id": notif.get("notification_id"),
+            "type": notification_type,
+            "message": formatted_message,
+            "created_at": notif.get("created_at"),
+            "is_read": notif.get("is_read")
+        })
 
     # Active projects and utilization percent
     cur.execute(

@@ -1,67 +1,125 @@
-import { DollarSign, TrendingUp, Users, Activity } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, Activity, Loader, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+
+interface DashboardStats {
+  total_donations: number;
+  total_utilized: number;
+  total_beneficiaries: number;
+  active_projects: number;
+  growth_percent: number;
+  utilization_percent: number;
+}
+
+interface FundAllocation {
+  utilized: number;
+  available: number;
+}
+
+interface ThisMonth {
+  donations: number;
+  utilized: number;
+  beneficiaries: number;
+}
+
+interface Category {
+  category: string;
+  percentage: number;
+}
+
+interface Activity {
+  type: string;
+  description: string;
+  amount: string;
+  time: string;
+}
+
+interface DashboardData {
+  stats: DashboardStats;
+  fund_allocation: FundAllocation;
+  this_month: ThisMonth;
+  top_categories: Category[];
+  recent_activities: Activity[];
+}
 
 function Dashboard() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  const loadDashboard = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/admin/dashboard');
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch dashboard data');
+      }
+
+      const dashboardData = await response.json();
+      setData(dashboardData);
+    } catch (err: any) {
+      setError(err.message || 'Server error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md">
+          <AlertCircle className="w-12 h-12 text-red-600 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-800 mb-2 text-center">Error Loading Dashboard</h2>
+          <p className="text-gray-600 text-center">{error || 'No data available'}</p>
+        </div>
+      </div>
+    );
+  }
+
   const stats = [
     {
       title: 'Total Donations',
-      value: '$1,245,890',
-      change: '+12.5%',
+      value: `₹${data.stats.total_donations.toLocaleString()}`,
+      change: `${data.stats.growth_percent > 0 ? '+' : ''}${data.stats.growth_percent}%`,
       icon: <DollarSign className="w-8 h-8" />,
       color: 'bg-blue-500',
     },
     {
       title: 'Utilized Funds',
-      value: '$987,450',
-      change: '+8.3%',
+      value: `₹${data.stats.total_utilized.toLocaleString()}`,
+      change: `${data.stats.utilization_percent}%`,
       icon: <TrendingUp className="w-8 h-8" />,
       color: 'bg-green-500',
     },
     {
       title: 'Total Beneficiaries',
-      value: '3,456',
+      value: data.stats.total_beneficiaries.toLocaleString(),
       change: '+15.2%',
       icon: <Users className="w-8 h-8" />,
       color: 'bg-blue-600',
     },
     {
-      title: 'Active Projects',
-      value: '28',
+      title: 'Active NGOs',
+      value: data.stats.active_projects.toString(),
       change: '+4',
       icon: <Activity className="w-8 h-8" />,
       color: 'bg-green-600',
-    },
-  ];
-
-  const recentActivities = [
-    {
-      type: 'donation',
-      description: 'New donation received from John Doe',
-      amount: '$5,000',
-      time: '2 hours ago',
-    },
-    {
-      type: 'utilization',
-      description: 'Funds allocated to Education Project',
-      amount: '$3,500',
-      time: '5 hours ago',
-    },
-    {
-      type: 'donation',
-      description: 'New donation received from ABC Corp',
-      amount: '$10,000',
-      time: '1 day ago',
-    },
-    {
-      type: 'beneficiary',
-      description: '15 new beneficiaries added to Healthcare Program',
-      amount: '-',
-      time: '2 days ago',
-    },
-    {
-      type: 'utilization',
-      description: 'Funds allocated to Food Distribution',
-      amount: '$2,800',
-      time: '3 days ago',
     },
   ];
 
@@ -104,24 +162,24 @@ function Dashboard() {
               <div>
                 <div className="flex justify-between mb-1">
                   <span className="text-sm text-gray-600">Utilized</span>
-                  <span className="text-sm font-semibold text-gray-800">79.3%</span>
+                  <span className="text-sm font-semibold text-gray-800">{data.fund_allocation.utilized}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-green-600 h-2 rounded-full"
-                    style={{ width: '79.3%' }}
+                    style={{ width: `${data.fund_allocation.utilized}%` }}
                   ></div>
                 </div>
               </div>
               <div>
                 <div className="flex justify-between mb-1">
                   <span className="text-sm text-gray-600">Available</span>
-                  <span className="text-sm font-semibold text-gray-800">20.7%</span>
+                  <span className="text-sm font-semibold text-gray-800">{data.fund_allocation.available}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-blue-600 h-2 rounded-full"
-                    style={{ width: '20.7%' }}
+                    style={{ width: `${data.fund_allocation.available}%` }}
                   ></div>
                 </div>
               </div>
@@ -135,15 +193,15 @@ function Dashboard() {
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-gray-600">Donations</span>
-                <span className="font-semibold text-gray-800">$145,230</span>
+                <span className="font-semibold text-gray-800">₹{data.this_month.donations.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Utilized</span>
-                <span className="font-semibold text-gray-800">$98,450</span>
+                <span className="font-semibold text-gray-800">₹{data.this_month.utilized.toLocaleString()}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Beneficiaries</span>
-                <span className="font-semibold text-gray-800">342</span>
+                <span className="font-semibold text-gray-800">{data.this_month.beneficiaries}</span>
               </div>
             </div>
           </div>
@@ -153,18 +211,12 @@ function Dashboard() {
               Top Categories
             </h3>
             <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Education</span>
-                <span className="font-semibold text-blue-600">35%</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Healthcare</span>
-                <span className="font-semibold text-green-600">28%</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Food Security</span>
-                <span className="font-semibold text-blue-600">22%</span>
-              </div>
+              {data.top_categories.map((cat, index) => (
+                <div key={index} className="flex justify-between">
+                  <span className="text-gray-600">{cat.category}</span>
+                  <span className="font-semibold text-blue-600">{cat.percentage}%</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -174,7 +226,7 @@ function Dashboard() {
             Recent Activities
           </h2>
           <div className="space-y-4">
-            {recentActivities.map((activity, index) => (
+            {data.recent_activities.map((activity, index) => (
               <div
                 key={index}
                 className="flex items-center justify-between border-b border-gray-200 pb-4 last:border-0"

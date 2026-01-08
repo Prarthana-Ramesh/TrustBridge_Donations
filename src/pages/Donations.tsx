@@ -1,88 +1,67 @@
-import { Search, Download } from 'lucide-react';
+import { Search, Download, DollarSign, TrendingUp, Loader, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useAuth } from './AuthContext';
+
+interface Donation {
+  donation_id: string;
+  donor_name: string;
+  amount: number;
+  amount_utilized: number;
+  purpose: string;
+  donated_at: string;
+  status: string;
+}
+
+interface Summary {
+  total_donations: number;
+  total_utilized: number;
+  total_count: number;
+}
 
 function Donations() {
-  const donations = [
-    {
-      id: 'DON-001',
-      donor: 'John Smith',
-      amount: '$5,000',
-      date: '2024-03-15',
-      purpose: 'Education Program',
-      status: 'Received',
-    },
-    {
-      id: 'DON-002',
-      donor: 'ABC Corporation',
-      amount: '$10,000',
-      date: '2024-03-14',
-      purpose: 'Healthcare Initiative',
-      status: 'Received',
-    },
-    {
-      id: 'DON-003',
-      donor: 'Jane Doe',
-      amount: '$2,500',
-      date: '2024-03-13',
-      purpose: 'Food Distribution',
-      status: 'Received',
-    },
-    {
-      id: 'DON-004',
-      donor: 'XYZ Foundation',
-      amount: '$15,000',
-      date: '2024-03-12',
-      purpose: 'Infrastructure Development',
-      status: 'Received',
-    },
-    {
-      id: 'DON-005',
-      donor: 'Michael Johnson',
-      amount: '$3,200',
-      date: '2024-03-11',
-      purpose: 'Education Program',
-      status: 'Received',
-    },
-    {
-      id: 'DON-006',
-      donor: 'Sarah Williams',
-      amount: '$4,800',
-      date: '2024-03-10',
-      purpose: 'Healthcare Initiative',
-      status: 'Received',
-    },
-    {
-      id: 'DON-007',
-      donor: 'Tech Corp Inc.',
-      amount: '$20,000',
-      date: '2024-03-09',
-      purpose: 'Technology for Education',
-      status: 'Received',
-    },
-    {
-      id: 'DON-008',
-      donor: 'Robert Brown',
-      amount: '$1,500',
-      date: '2024-03-08',
-      purpose: 'Food Distribution',
-      status: 'Received',
-    },
-    {
-      id: 'DON-009',
-      donor: 'Green Earth NGO',
-      amount: '$8,000',
-      date: '2024-03-07',
-      purpose: 'Environmental Conservation',
-      status: 'Received',
-    },
-    {
-      id: 'DON-010',
-      donor: 'Emily Davis',
-      amount: '$2,800',
-      date: '2024-03-06',
-      purpose: 'Healthcare Initiative',
-      status: 'Received',
-    },
-  ];
+  const { token } = useAuth();
+  const [donations, setDonations] = useState<Donation[]>([]);
+  const [summary, setSummary] = useState<Summary>({
+    total_donations: 0,
+    total_utilized: 0,
+    total_count: 0
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    loadDonations();
+  }, [token]);
+
+  const loadDonations = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const headers: any = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch('/api/donations/records', { headers });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch donation records');
+      }
+
+      const data = await response.json();
+      setDonations(data.donations || []);
+      setSummary(data.summary || { total_donations: 0, total_utilized: 0, total_count: 0 });
+    } catch (err: any) {
+      setError(err.message || 'Server error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredDonations = donations.filter(d =>
+    d.donor_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    d.purpose.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    d.donation_id.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -94,6 +73,52 @@ function Donations() {
           </p>
         </div>
 
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-3 bg-green-100 rounded-lg">
+                <DollarSign className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+            <h3 className="text-gray-600 text-sm font-medium mb-1">Total Donations</h3>
+            <p className="text-2xl font-bold text-gray-800">
+              ₹{summary.total_donations.toLocaleString()}
+            </p>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <TrendingUp className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+            <h3 className="text-gray-600 text-sm font-medium mb-1">Total Utilized</h3>
+            <p className="text-2xl font-bold text-gray-800">
+              ₹{summary.total_utilized.toLocaleString()}
+            </p>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
+            <div className="flex items-center justify-between mb-2">
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <DollarSign className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+            <h3 className="text-gray-600 text-sm font-medium mb-1">Available Balance</h3>
+            <p className="text-2xl font-bold text-gray-800">
+              ₹{(summary.total_donations - summary.total_utilized).toLocaleString()}
+            </p>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+            <p className="text-red-800">{error}</p>
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="relative w-full md:w-96">
@@ -101,6 +126,8 @@ function Donations() {
               <input
                 type="text"
                 placeholder="Search donations..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -111,86 +138,92 @@ function Donations() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-blue-600 to-green-600 text-white">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">
-                    Donation ID
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">
-                    Donor Name
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">
-                    Amount
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Date</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">
-                    Purpose
-                  </th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {donations.map((donation, index) => (
-                  <tr
-                    key={donation.id}
-                    className={`hover:bg-blue-50 transition-colors ${
-                      index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                    }`}
-                  >
-                    <td className="px-6 py-4 text-sm font-medium text-blue-600">
-                      {donation.id}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-800">
-                      {donation.donor}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-green-600">
-                      {donation.amount}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {donation.date}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-800">
-                      {donation.purpose}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                        {donation.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {loading ? (
+          <div className="bg-white rounded-lg shadow-md p-12 flex items-center justify-center">
+            <Loader className="w-8 h-8 text-blue-600 animate-spin" />
+            <span className="ml-3 text-gray-600">Loading donations...</span>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gradient-to-r from-blue-600 to-green-600 text-white">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-sm font-semibold">
+                        Donation ID
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold">
+                        Donor Name
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold">
+                        Amount
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold">
+                        Utilized
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold">Date</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold">
+                        Purpose
+                      </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {filteredDonations.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                          No donations found
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredDonations.map((donation, index) => (
+                        <tr
+                          key={donation.donation_id}
+                          className={`hover:bg-blue-50 transition-colors ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                          }`}
+                        >
+                          <td className="px-6 py-4 text-sm font-medium text-blue-600">
+                            {donation.donation_id.substring(0, 8)}...
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-800">
+                            {donation.donor_name}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-semibold text-green-600">
+                            ₹{donation.amount.toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 text-sm font-semibold text-blue-600">
+                            ₹{donation.amount_utilized.toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            {donation.donated_at ? new Date(donation.donated_at).toLocaleDateString() : 'N/A'}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-800">
+                            {donation.purpose}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                              {donation.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-        <div className="mt-6 flex justify-between items-center">
-          <p className="text-sm text-gray-600">
-            Showing {donations.length} donation records
-          </p>
-          <div className="flex space-x-2">
-            <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              Previous
-            </button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-              1
-            </button>
-            <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              2
-            </button>
-            <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              3
-            </button>
-            <button className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              Next
-            </button>
-          </div>
-        </div>
+            <div className="mt-6 flex justify-between items-center">
+              <p className="text-sm text-gray-600">
+                Showing {filteredDonations.length} of {summary.total_count} donation records
+              </p>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
