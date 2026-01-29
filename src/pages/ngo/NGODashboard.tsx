@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../AuthContext';
 import { DollarSign, Users, TrendingUp, FolderOpen, Bell, Heart, ArrowRight, Clock } from 'lucide-react';
 
@@ -24,59 +24,73 @@ function NGODashboard({ onNavigate }: NGODashboardProps) {
   const [activeProjects, setActiveProjects] = useState<any[]>([]);
   const { token } = useAuth();
 
-  useEffect(() => {
-
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      console.debug('NGODashboard - token', token);
-      try {
-        const headers: any = {};
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-        console.debug('NGODashboard - fetch headers', headers);
-        const res = await fetch('/api/ngo/dashboard', { headers });
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || 'Failed to fetch dashboard data');
-        }
-
+  const loadDashboard = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    console.debug('NGODashboard - token', token);
+    try {
+      const headers: any = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      console.debug('NGODashboard - fetch headers', headers);
+      const res = await fetch('/api/ngo/dashboard', { headers });
+      if (!res.ok) {
         const text = await res.text();
-        let data: any;
-        try {
-          data = JSON.parse(text);
-        } catch (err) {
-          throw new Error('Invalid JSON response from server: ' + (text || String(err)));
-        }
+        throw new Error(text || 'Failed to fetch dashboard data');
+      }
 
-        const summary = data.summary || {};
-        setSummaryData({
-          totalDonationsReceived: summary.totalDonationsReceived || 0,
-          utilizedFunds: summary.utilizedFunds || 0,
-          activeDonors: summary.activeDonors || 0,
-          activeProjects: summary.activeProjects || 0,
-          additionalDonationsSinceLastLogin: summary.additionalDonationsSinceLastLogin || 0,
-          utilizationChangePercent: summary.utilizationChangePercent ?? null,
-          newDonorsSinceLastLogin: summary.newDonorsSinceLastLogin || 0,
-        });
-        setRecentDonations((data.recentDonations || []).map((d: any, idx: number) => ({
-          id: d.donation_id || idx,
-          donor: d.donor || 'Unknown',
-          amount: d.amount,
-          date: d.date || d.donated_at,
-          project: d.project_name || '',
-          new: false
-        })));
-        setNotifications(data.notifications || []);
-        setActiveProjects(data.activeProjects || []);
-      } catch (err: any) {
-        setError(err.message || 'Server error');
-      } finally {
-        setLoading(false);
+      const text = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch (err) {
+        throw new Error('Invalid JSON response from server: ' + (text || String(err)));
+      }
+
+      const summary = data.summary || {};
+      setSummaryData({
+        totalDonationsReceived: summary.totalDonationsReceived || 0,
+        utilizedFunds: summary.utilizedFunds || 0,
+        activeDonors: summary.activeDonors || 0,
+        activeProjects: summary.activeProjects || 0,
+        additionalDonationsSinceLastLogin: summary.additionalDonationsSinceLastLogin || 0,
+        utilizationChangePercent: summary.utilizationChangePercent ?? null,
+        newDonorsSinceLastLogin: summary.newDonorsSinceLastLogin || 0,
+      });
+      setRecentDonations((data.recentDonations || []).map((d: any, idx: number) => ({
+        id: d.donation_id || idx,
+        donor: d.donor || 'Unknown',
+        amount: d.amount,
+        date: d.date || d.donated_at,
+        project: d.project_name || '',
+        new: false
+      })));
+      setNotifications(data.notifications || []);
+      setActiveProjects(data.activeProjects || []);
+    } catch (err: any) {
+      setError(err.message || 'Server error');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  useEffect(() => {
+    // Listen for cross-tab donation updates and refresh dashboard when they occur
+    const channel = new BroadcastChannel('donation-updates');
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'donation-created') {
+        loadDashboard();
       }
     };
-
-    load();
-  }, [token]);
+    channel.addEventListener('message', handleMessage);
+    return () => {
+      channel.removeEventListener('message', handleMessage);
+      channel.close();
+    };
+  }, [loadDashboard]);
 
 
   const quickActions = [

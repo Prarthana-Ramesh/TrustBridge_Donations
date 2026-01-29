@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, current_app
 from psycopg2.extras import RealDictCursor
 from db import get_db
 from jwt_utils import decode_jwt
+from blockchain import trustbridge_blockchain
 
 donation_bp = Blueprint("donation", __name__, url_prefix="/api/donations")
 
@@ -266,6 +267,20 @@ def create_donation():
             txn_ref = f"TXN{int(donation_id):09d}"
         except (TypeError, ValueError):
             txn_ref = f"TXN{donation_id}" if donation_id is not None else "TXN-UNKNOWN"
+
+        # Add to blockchain
+        try:
+            trustbridge_blockchain.add_block({
+                "type": "donation",
+                "donation_id": str(donation_id),
+                "donor_id": str(donor_id),
+                "ngo_id": str(ngo_id),
+                "amount": float(data["amount"]),
+                "purpose": data["purpose"],
+                "transaction_ref": txn_ref
+            })
+        except Exception as e:
+            print(f"Warning: Failed to add donation to blockchain: {str(e)}")
 
         return jsonify({
             "success": True,

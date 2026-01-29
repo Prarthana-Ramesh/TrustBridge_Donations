@@ -11,7 +11,6 @@ function MakeDonation({ onNavigate }: MakeDonationProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4;
   const [ngoOptions, setNgoOptions] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -128,6 +127,16 @@ function MakeDonation({ onNavigate }: MakeDonationProps) {
 
       const txnRef = data?.donation?.transaction_id || data?.donation?.donation_id || 'N/A';
       alert(`Donation successful! Reference: ${txnRef}`);
+
+      // Notify other tabs (e.g., NGO dashboard) to refresh immediately
+      try {
+        const channel = new BroadcastChannel('donation-updates');
+        channel.postMessage({ type: 'donation-created', ts: Date.now() });
+        channel.close();
+      } catch (notifyErr) {
+        console.warn('BroadcastChannel not available, skipping cross-tab notify', notifyErr);
+      }
+
       onNavigate('donor-dashboard');
     } catch (err) {
       console.error('Error submitting donation:', err);
@@ -141,7 +150,6 @@ function MakeDonation({ onNavigate }: MakeDonationProps) {
   useEffect(() => {
     const fetchNGOs = async () => {
       try {
-        setLoading(true);
         const authToken = ctxToken || localStorage.getItem('token');
         
         const response = await fetch('http://localhost:5000/api/ngo/list', {
@@ -167,8 +175,6 @@ function MakeDonation({ onNavigate }: MakeDonationProps) {
         // Fallback to empty list
         setNgoOptions([]);
         setError('Unable to load NGO list. Please try again or contact support.');
-      } finally {
-        setLoading(false);
       }
     };
 

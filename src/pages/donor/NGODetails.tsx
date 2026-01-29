@@ -1,4 +1,46 @@
 import { Building2, MapPin, TrendingUp, Heart, ArrowLeft, Calendar, Users } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+
+type ApiNgo = {
+  ngo_id: number;
+  name: string;
+  sector?: string;
+  location?: string;
+  description?: string;
+  fundsReceived?: number;
+  utilized?: number;
+  beneficiaries?: number;
+  projects?: number;
+  phone?: string;
+  registration_number?: string;
+  website?: string;
+  email?: string;
+  founded?: string;
+  rating?: number;
+  totalFunds?: number;
+};
+
+type DonationRecord = {
+  donation_id: number;
+  donor_name: string;
+  amount: number;
+  donated_at?: string;
+  purpose?: string;
+  amount_utilized?: number;
+  ngo_name?: string;
+};
+
+type UtilizationRecord = {
+  utilization_id: number;
+  donation_id?: number;
+  project_id?: number;
+  amount_utilized?: number;
+  purpose?: string;
+  beneficiaries?: number;
+  location?: string;
+  utilized_at?: string;
+  ngo_name?: string;
+};
 
 interface NGODetailsProps {
   onNavigate: (page: string) => void;
@@ -6,48 +48,136 @@ interface NGODetailsProps {
 }
 
 function NGODetails({ onNavigate, ngoId = 1 }: NGODetailsProps) {
-  // Dummy NGO data
-  const ngo = {
-    id: ngoId,
-    name: 'Education For All',
-    sector: 'Education',
-    location: 'Mumbai, Maharashtra',
-    description: 'Education For All is dedicated to providing quality education to underprivileged children across rural India. We believe every child deserves access to education regardless of their economic background.',
-    founded: '2015',
-    website: 'www.educationforall.org',
-    email: 'contact@educationforall.org',
-    phone: '+91 98765 43210',
-    rating: 4.8,
-    totalFunds: 450000,
-    utilized: 92,
-    beneficiaries: 1200,
-    projects: 15,
-  };
+  const [ngoData, setNgoData] = useState<ApiNgo | null>(null);
+  const [donations, setDonations] = useState<DonationRecord[]>([]);
+  const [utilizations, setUtilizations] = useState<UtilizationRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-  // Donor's donations to this NGO
-  const donorDonations = [
-    { id: 1, amount: 15000, date: '2025-11-15', purpose: 'School Infrastructure', utilized: 95 },
-    { id: 2, amount: 20000, date: '2025-10-20', purpose: 'Books and Learning Materials', utilized: 100 },
-    { id: 3, amount: 10000, date: '2025-09-10', purpose: 'Teacher Training Program', utilized: 88 },
-  ];
+  useEffect(() => {
+    const controller = new AbortController();
+    async function fetchNgo() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/ngo/list`, { signal: controller.signal });
+        if (!res.ok) throw new Error('Failed to load NGO details');
+        const data = await res.json();
+        const match: ApiNgo | undefined = (data?.ngos || []).find((n: ApiNgo) => n.ngo_id === ngoId);
+        setNgoData(match || null);
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          setError(err?.message || 'Unable to fetch NGO details');
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchNgo();
+    return () => controller.abort();
+  }, [API_BASE_URL, ngoId]);
+
+  const ngo = useMemo(() => {
+    const fallback: ApiNgo = {
+      ngo_id: ngoId,
+      name: 'Education For All',
+      sector: 'Education',
+      location: 'India',
+      description: 'Trusted NGO making a difference.',
+      fundsReceived: 0,
+      utilized: 85,
+      beneficiaries: 0,
+      projects: 0,
+      phone: '',
+      rating: 4.5,
+    };
+    return ngoData || fallback;
+  }, [ngoData, ngoId]);
+
+  useEffect(() => {
+    if (!ngo.name) return;
+    const controller = new AbortController();
+    async function fetchDonations() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/donations/records`, { signal: controller.signal });
+        if (!res.ok) throw new Error('Failed to load donations');
+        const data = await res.json();
+        const list: DonationRecord[] = data?.donations || [];
+        setDonations(list.filter((d) => d.ngo_name === ngo.name));
+      } catch (err) {
+        if (err && (err as any).name === 'AbortError') return;
+      }
+    }
+
+    async function fetchUtilizations() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/utilization/records`, { signal: controller.signal });
+        if (!res.ok) throw new Error('Failed to load utilizations');
+        const data = await res.json();
+        const list: UtilizationRecord[] = data?.records || [];
+        setUtilizations(list.filter((r) => r.ngo_name === ngo.name));
+      } catch (err) {
+        if (err && (err as any).name === 'AbortError') return;
+      }
+    }
+
+    fetchDonations();
+    fetchUtilizations();
+    return () => controller.abort();
+  }, [API_BASE_URL, ngo.name]);
+
+  const donorDonations = useMemo(() =>
+    donations.map((d) => ({
+      id: d.donation_id,
+      amount: d.amount,
+      date: d.donated_at ? d.donated_at.split('T')[0] : '—',
+      purpose: d.purpose || 'General',
+      utilized: d.amount_utilized !== undefined && d.amount > 0 ? Math.min(Math.round((d.amount_utilized / d.amount) * 100), 100) : 0,
+    }))
+  , [donations]);
 
   const totalDonated = donorDonations.reduce((sum, d) => sum + d.amount, 0);
 
-  // Utilization breakdown
-  const utilizationBreakdown = [
-    { purpose: 'School Infrastructure', amount: 14250, percentage: 95 },
-    { purpose: 'Books and Learning Materials', amount: 20000, percentage: 100 },
-    { purpose: 'Teacher Training Program', amount: 8800, percentage: 88 },
-    { purpose: 'Student Scholarships', amount: 12000, percentage: 85 },
-  ];
+  const impactMetrics = useMemo(() => ([
+    { label: 'Beneficiaries', value: (ngo.beneficiaries ?? 0).toLocaleString(), icon: <Users className="w-5 h-5" /> },
+    { label: 'Active Projects', value: (ngo.projects ?? 0).toString(), icon: <Heart className="w-5 h-5" /> },
+    { label: 'Funds Received', value: `₹${(ngo.fundsReceived ?? 0).toLocaleString()}`, icon: <TrendingUp className="w-5 h-5" /> },
+    { label: 'Transparency', value: `${ngo.utilized ?? 0}%`, icon: <Building2 className="w-5 h-5" /> },
+  ]), [ngo]);
 
-  // Impact metrics
-  const impactMetrics = [
-    { label: 'Students Enrolled', value: '450', icon: <Users className="w-5 h-5" /> },
-    { label: 'Schools Supported', value: '12', icon: <Building2 className="w-5 h-5" /> },
-    { label: 'Teachers Trained', value: '35', icon: <TrendingUp className="w-5 h-5" /> },
-    { label: 'Active Projects', value: '15', icon: <Heart className="w-5 h-5" /> },
-  ];
+  const utilizationBreakdown = useMemo(() => {
+    if (!utilizations.length) return [] as { purpose: string; amount: number; percentage: number }[];
+    return utilizations.map((u) => ({
+      purpose: u.purpose || 'General',
+      amount: u.amount_utilized || 0,
+      percentage: u.amount_utilized ? 100 : 0,
+    }));
+  }, [utilizations]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center text-gray-700">Loading NGO details...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center text-red-600 font-semibold">{error}</div>
+      </div>
+    );
+  }
+
+  const displayFounded = ngo.founded || '—';
+  const displayRating = typeof ngo.rating === 'number' ? ngo.rating : 4.5;
+  const fundsDisplay = ngo.fundsReceived ?? ngo.totalFunds ?? 0;
+  const phoneDisplay = ngo.phone || 'Not available';
+  const websiteDisplay = ngo.website || '';
+  const emailDisplay = ngo.email || '';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -86,11 +216,11 @@ function NGODetails({ onNavigate, ngoId = 1 }: NGODetailsProps) {
               <div className="flex items-center gap-6 text-sm">
                 <span className="flex items-center">
                   <Calendar className="w-4 h-4 mr-1" />
-                  Founded {ngo.founded}
+                  Founded {displayFounded}
                 </span>
                 <span className="flex items-center">
                   <span className="text-yellow-300 mr-1">★</span>
-                  {ngo.rating} Rating
+                  {displayRating} Rating
                 </span>
               </div>
             </div>
@@ -225,27 +355,39 @@ function NGODetails({ onNavigate, ngoId = 1 }: NGODetailsProps) {
               <div className="space-y-3 text-sm">
                 <div>
                   <p className="text-gray-600 mb-1">Website</p>
-                  <a
-                    href={`https://${ngo.website}`}
-                    className="text-blue-600 hover:underline"
-                  >
-                    {ngo.website}
-                  </a>
+                  {websiteDisplay ? (
+                    <a
+                      href={`https://${websiteDisplay}`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      {websiteDisplay}
+                    </a>
+                  ) : (
+                    <span className="text-gray-500">Not available</span>
+                  )}
                 </div>
                 <div>
                   <p className="text-gray-600 mb-1">Email</p>
-                  <a
-                    href={`mailto:${ngo.email}`}
-                    className="text-blue-600 hover:underline"
-                  >
-                    {ngo.email}
-                  </a>
+                  {emailDisplay ? (
+                    <a
+                      href={`mailto:${emailDisplay}`}
+                      className="text-blue-600 hover:underline"
+                    >
+                      {emailDisplay}
+                    </a>
+                  ) : (
+                    <span className="text-gray-500">Not available</span>
+                  )}
                 </div>
                 <div>
                   <p className="text-gray-600 mb-1">Phone</p>
-                  <a href={`tel:${ngo.phone}`} className="text-blue-600 hover:underline">
-                    {ngo.phone}
-                  </a>
+                  {phoneDisplay ? (
+                    <a href={`tel:${phoneDisplay}`} className="text-blue-600 hover:underline">
+                      {phoneDisplay}
+                    </a>
+                  ) : (
+                    <span className="text-gray-500">Not available</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -256,7 +398,7 @@ function NGODetails({ onNavigate, ngoId = 1 }: NGODetailsProps) {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-blue-100">Total Funds</span>
-                  <span className="font-bold">₹{(ngo.totalFunds / 1000).toFixed(0)}K</span>
+                  <span className="font-bold">₹{(fundsDisplay / 1000).toFixed(0)}K</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-blue-100">Beneficiaries</span>

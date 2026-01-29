@@ -10,6 +10,7 @@ from ngo_analytics_routes import ngo_analytics_bp
 from donor_analytics_routes import donor_analytics_bp
 from admin_routes import admin_bp
 from reports_routes import reports_bp
+from blockchain_routes import blockchain_bp
 import os
 
 app = Flask(__name__)
@@ -28,6 +29,7 @@ app.register_blueprint(ngo_analytics_bp)
 app.register_blueprint(donor_analytics_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(reports_bp)
+app.register_blueprint(blockchain_bp)
 
 
 if __name__ == "__main__":

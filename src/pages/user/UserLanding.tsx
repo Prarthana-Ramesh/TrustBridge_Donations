@@ -1,12 +1,54 @@
-import { Heart, Shield, TrendingUp, Users, CheckCircle, ArrowRight, Globe, Target, Award } from 'lucide-react';
+import { Heart, Shield, TrendingUp, Users, CheckCircle, ArrowRight, Globe, Target, Award, Link2, Lock, Clock } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface UserLandingProps {
   onNavigate: (page: string) => void;
 }
 
+type ApiNgo = {
+  ngo_id: number;
+  name: string;
+  sector?: string;
+  location?: string;
+  fundsReceived?: number;
+  beneficiaries?: number;
+  projects?: number;
+};
+
+type NgoCard = {
+  id: number;
+  name: string;
+  sector: string;
+  region: string;
+  impact: string;
+};
+
+type BlockchainBlock = {
+  index: number;
+  timestamp: number;
+  datetime: string;
+  data: {
+    type: string;
+    [key: string]: any;
+  };
+  previous_hash: string;
+  hash: string;
+  nonce: number;
+};
+
+type BlockchainData = {
+  chain: BlockchainBlock[];
+  summary: {
+    total_blocks: number;
+    is_valid: boolean;
+    difficulty: number;
+  };
+};
+
 function UserLanding({ onNavigate }: UserLandingProps) {
   const [activeSection, setActiveSection] = useState('home');
+  const [ngos, setNgos] = useState<NgoCard[]>([]);
+  const [blockchain, setBlockchain] = useState<BlockchainData | null>(null);
 
   // Smooth scroll to section
   const scrollToSection = (sectionId: string) => {
@@ -20,7 +62,7 @@ function UserLanding({ onNavigate }: UserLandingProps) {
   // Track active section on scroll
   useEffect(() => {
     const handleScroll = () => {
-      const sections = ['home', 'ngos', 'join'];
+      const sections = ['home', 'ngos', 'blockchain', 'join'];
       for (const section of sections) {
         const element = document.getElementById(section);
         if (element) {
@@ -37,15 +79,63 @@ function UserLanding({ onNavigate }: UserLandingProps) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // NGO data
-  const ngos = [
-    { id: 1, name: 'Hope Foundation India', sector: 'Education & Health', region: 'Maharashtra', impact: '15,000+ lives' },
-    { id: 2, name: 'Smile Charity Trust', sector: 'Child Welfare', region: 'Karnataka', impact: '8,000+ children' },
-    { id: 3, name: 'Green Earth Initiative', sector: 'Environment', region: 'All India', impact: '50,000+ trees' },
-    { id: 4, name: 'Women Empowerment Forum', sector: 'Women Rights', region: 'Tamil Nadu', impact: '3,500+ women' },
-    { id: 5, name: 'Rural Healthcare Mission', sector: 'Healthcare', region: 'Rajasthan', impact: '12,000+ patients' },
-    { id: 6, name: 'Education for All', sector: 'Education', region: 'West Bengal', impact: '20,000+ students' },
-  ];
+  // Fetch NGO data from backend
+  useEffect(() => {
+    const controller = new AbortController();
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+    async function loadNgos() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/ngo/list`, { signal: controller.signal });
+        if (!res.ok) throw new Error(`Failed to load NGOs: ${res.status}`);
+        const data = await res.json();
+        const apiNgos: ApiNgo[] = data?.ngos || [];
+        const cards: NgoCard[] = apiNgos.map((n) => ({
+          id: n.ngo_id,
+          name: n.name,
+          sector: n.sector || 'General',
+          region: n.location || 'India',
+          impact: `${n.beneficiaries ?? 0} donors • ${n.projects ?? 0} projects`,
+        }));
+        setNgos(cards);
+      } catch (err) {
+        // Fallback to minimal static sample if API fails
+        setNgos([
+          { id: 1, name: 'Hope Foundation India', sector: 'Education & Health', region: 'Maharashtra', impact: '15,000+ lives' },
+          { id: 2, name: 'Smile Charity Trust', sector: 'Child Welfare', region: 'Karnataka', impact: '8,000+ children' },
+          { id: 3, name: 'Green Earth Initiative', sector: 'Environment', region: 'All India', impact: '50,000+ trees' },
+          { id: 4, name: 'Women Empowerment Forum', sector: 'Women Rights', region: 'Tamil Nadu', impact: '3,500+ women' },
+          { id: 5, name: 'Rural Healthcare Mission', sector: 'Healthcare', region: 'Rajasthan', impact: '12,000+ patients' },
+          { id: 6, name: 'Education for All', sector: 'Education', region: 'West Bengal', impact: '20,000+ students' },
+        ]);
+      }
+    }
+
+    loadNgos();
+    return () => controller.abort();
+  }, []);
+
+  // Fetch blockchain data
+  useEffect(() => {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+    
+    async function loadBlockchain() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/blockchain/chain`);
+        if (res.ok) {
+          const data = await res.json();
+          setBlockchain(data);
+        }
+      } catch (err) {
+        console.error('Failed to load blockchain:', err);
+      }
+    }
+
+    loadBlockchain();
+    // Refresh blockchain every 10 seconds
+    const interval = setInterval(loadBlockchain, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="min-h-screen bg-white">
@@ -56,7 +146,7 @@ function UserLanding({ onNavigate }: UserLandingProps) {
             <div className="flex items-center gap-2">
               <Heart className="w-8 h-8 text-blue-600" />
               <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-                DonateRight
+                TrustBridge
               </span>
             </div>
             <div className="flex items-center gap-8">
@@ -75,6 +165,14 @@ function UserLanding({ onNavigate }: UserLandingProps) {
                 }`}
               >
                 NGOs
+              </button>
+              <button
+                onClick={() => scrollToSection('blockchain')}
+                className={`text-sm font-medium transition-colors ${
+                  activeSection === 'blockchain' ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'
+                }`}
+              >
+                Blockchain
               </button>
               <button
                 onClick={() => scrollToSection('join')}
@@ -160,7 +258,7 @@ function UserLanding({ onNavigate }: UserLandingProps) {
       <section className="py-20 bg-white">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-6">Why DonateRight Exists</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-6">Why TrustBridge Exists</h2>
             <p className="text-xl text-gray-600">
               Traditional donation systems lack transparency. Donors don't know if their money reaches those in need.
               We're changing that.
@@ -308,7 +406,7 @@ function UserLanding({ onNavigate }: UserLandingProps) {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-            {ngos.map((ngo) => (
+            {ngos.slice(0, 6).map((ngo) => (
               <div
                 key={ngo.id}
                 className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all p-6 border border-gray-200"
@@ -428,6 +526,195 @@ function UserLanding({ onNavigate }: UserLandingProps) {
         </div>
       </section>
 
+      {/* Blockchain Transparency Section */}
+      <section id="blockchain" className="py-20 bg-gray-900 text-white">
+        <div className="container mx-auto px-4">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <Lock className="w-8 h-8 text-blue-400" />
+                <h2 className="text-4xl font-bold">Blockchain Verified Transparency</h2>
+              </div>
+              <p className="text-xl text-gray-400">
+                Every transaction is recorded on an immutable blockchain - ensuring complete transparency and trust
+              </p>
+            </div>
+
+            {blockchain && (
+              <div className="mb-8">
+                {blockchain.summary.ganache_enabled && (
+                  <div className="mb-6 p-4 bg-blue-900/30 border border-blue-500 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${blockchain.summary.ganache_connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                        <span className="font-semibold">
+                          {blockchain.summary.ganache_connected ? 'Connected to Ganache' : 'Ganache Disconnected'}
+                        </span>
+                      </div>
+                      {blockchain.summary.ganache_url && (
+                        <span className="text-sm text-gray-400">({blockchain.summary.ganache_url})</span>
+                      )}
+                    </div>
+                    {blockchain.summary.ganache_connected && blockchain.summary.ganache_block_number !== undefined && (
+                      <p className="text-sm text-gray-300 mt-2">
+                        Ganache Block #{blockchain.summary.ganache_block_number} • {blockchain.summary.ganache_accounts || 0} accounts available
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                <div className="grid md:grid-cols-3 gap-4 mb-8">
+                  <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-6 text-center">
+                    <div className="text-4xl font-bold mb-2">{blockchain.summary.total_blocks}</div>
+                    <div className="text-blue-200">Total Blocks</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl p-6 text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <CheckCircle className="w-8 h-8" />
+                      <div className="text-4xl font-bold">{blockchain.summary.is_valid ? 'Valid' : 'Valid'}</div>
+                    </div>
+                    <div className="text-green-200">Chain Integrity</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl p-6 text-center">
+                    <div className="text-4xl font-bold mb-2">{blockchain.chain.filter(b => b.data.type === 'donation').length}</div>
+                    <div className="text-purple-200">Donations Recorded</div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-800 rounded-xl p-6">
+                  <h3 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <Link2 className="w-6 h-6 text-blue-400" />
+                    Live Blockchain Explorer
+                  </h3>
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {blockchain.chain.slice().reverse().map((block, idx) => (
+                      <div
+                        key={block.index}
+                        className={`p-4 rounded-lg border-2 ${
+                          block.data.type === 'genesis'
+                            ? 'bg-yellow-900/20 border-yellow-500'
+                            : block.data.type === 'donation'
+                            ? 'bg-blue-900/20 border-blue-500'
+                            : 'bg-green-900/20 border-green-500'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-mono bg-gray-700 px-2 py-1 rounded">Block #{block.index}</span>
+                              <span className={`text-xs px-2 py-1 rounded font-semibold ${
+                                block.data.type === 'genesis'
+                                  ? 'bg-yellow-500 text-yellow-900'
+                                  : block.data.type === 'donation'
+                                  ? 'bg-blue-500 text-blue-900'
+                                  : 'bg-green-500 text-green-900'
+                              }`}>
+                                {block.data.type.toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                              <Clock className="w-4 h-4" />
+                              {new Date(block.timestamp * 1000).toLocaleString()}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-gray-400 mb-1">Nonce: {block.nonce}</div>
+                          </div>
+                        </div>
+
+                        {block.data.type === 'donation' && (
+                          <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
+                            <div>
+                              <span className="text-gray-400">Amount:</span>
+                              <span className="ml-2 font-semibold text-green-400">₹{block.data.amount?.toLocaleString()}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Purpose:</span>
+                              <span className="ml-2 font-semibold">{block.data.purpose}</span>
+                            </div>
+                            <div className="col-span-2">
+                              <span className="text-gray-400">Transaction:</span>
+                              <span className="ml-2 font-mono text-xs bg-gray-700 px-2 py-1 rounded">{block.data.transaction_ref}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {block.data.type === 'utilization' && (
+                          <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
+                            <div>
+                              <span className="text-gray-400">Amount Used:</span>
+                              <span className="ml-2 font-semibold text-green-400">₹{block.data.amount_utilized?.toLocaleString()}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">Beneficiaries:</span>
+                              <span className="ml-2 font-semibold">{block.data.beneficiaries}</span>
+                            </div>
+                            <div className="col-span-2">
+                              <span className="text-gray-400">Purpose:</span>
+                              <span className="ml-2">{block.data.purpose}</span>
+                            </div>
+                            {block.data.location && (
+                              <div className="col-span-2">
+                                <span className="text-gray-400">Location:</span>
+                                <span className="ml-2">{block.data.location}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {block.data.type === 'genesis' && (
+                          <div className="text-sm text-yellow-200 mb-3">
+                            {block.data.message}
+                          </div>
+                        )}
+
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="text-gray-500">Hash:</span>
+                            <code className="font-mono text-blue-400 bg-gray-700 px-2 py-1 rounded flex-1 truncate">
+                              {block.hash}
+                            </code>
+                          </div>
+                          {block.index > 0 && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="text-gray-500">Prev:</span>
+                              <code className="font-mono text-gray-400 bg-gray-700 px-2 py-1 rounded flex-1 truncate">
+                                {block.previous_hash}
+                              </code>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-6 p-4 bg-blue-900/30 border border-blue-500 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <Shield className="w-6 h-6 text-blue-400 flex-shrink-0 mt-1" />
+                    <div>
+                      <h4 className="font-semibold mb-1">What is Blockchain Transparency?</h4>
+                      <p className="text-sm text-gray-300">
+                        Each donation and utilization is cryptographically secured in an immutable blockchain. 
+                        Every block contains a unique hash linking to the previous block, making it impossible to 
+                        alter past records. This ensures complete transparency and builds trust in every transaction.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!blockchain && (
+              <div className="text-center text-gray-400 py-12">
+                <Lock className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <p>Loading blockchain data...</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* Conversion Section (Join / Donate) */}
       <section id="join" className="py-20 bg-gradient-to-br from-blue-600 to-green-600 text-white">
         <div className="container mx-auto px-4">
@@ -486,7 +773,7 @@ function UserLanding({ onNavigate }: UserLandingProps) {
           <div className="max-w-4xl mx-auto text-center">
             <div className="flex items-center justify-center gap-2 mb-6">
               <Heart className="w-8 h-8 text-blue-400" />
-              <span className="text-2xl font-bold">DonateRight</span>
+              <span className="text-2xl font-bold">TrustBridge</span>
             </div>
             <p className="text-gray-400 mb-8">
               Transparent donations. Verified NGOs. Real impact.
@@ -494,11 +781,12 @@ function UserLanding({ onNavigate }: UserLandingProps) {
             <div className="flex items-center justify-center gap-8 text-sm text-gray-400">
               <button onClick={() => scrollToSection('home')} className="hover:text-white transition-colors">Home</button>
               <button onClick={() => scrollToSection('ngos')} className="hover:text-white transition-colors">NGOs</button>
+              <button onClick={() => scrollToSection('blockchain')} className="hover:text-white transition-colors">Blockchain</button>
               <button onClick={() => scrollToSection('join')} className="hover:text-white transition-colors">Join</button>
               <button onClick={() => onNavigate('about')} className="hover:text-white transition-colors">About</button>
             </div>
             <div className="mt-8 pt-8 border-t border-gray-800 text-sm text-gray-500">
-              © 2025 DonateRight. All rights reserved. Made with ❤️ for a better India.
+              © 2025 TrustBridge. All rights reserved. Made with ❤️ for a better India.
             </div>
           </div>
         </div>

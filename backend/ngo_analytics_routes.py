@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, current_app
 from db import get_db
 from jwt_utils import decode_jwt
 from psycopg2.extras import RealDictCursor
+from datetime import datetime
 
 ngo_analytics_bp = Blueprint('ngo_analytics', __name__, url_prefix='/api/ngo-analytics')
 
@@ -25,6 +26,15 @@ def get_ngo_reports():
     if not user_id:
         return jsonify({'error': 'User ID not found in token'}), 401
 
+    # Parse optional filters
+    try:
+        year = int(request.args.get('year', datetime.utcnow().year))
+    except ValueError:
+        year = datetime.utcnow().year
+    category_param = request.args.get('category', 'all')
+    category_filter = category_param.lower() if category_param else 'all'
+    category_value = None if category_filter == 'all' else category_filter
+
     conn = get_db()
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
@@ -43,12 +53,13 @@ def get_ngo_reports():
                 TO_CHAR(donated_at, 'Mon') as month,
                 EXTRACT(MONTH FROM donated_at) as month_num,
                 COALESCE(SUM(amount), 0) as donations
-            FROM donations
-            WHERE ngo_id = %s 
-                AND EXTRACT(YEAR FROM donated_at) = EXTRACT(YEAR FROM CURRENT_DATE)
+            FROM donations d
+            WHERE d.ngo_id = %s 
+                AND EXTRACT(YEAR FROM d.donated_at) = %s
+                AND (%s IS NULL OR d.purpose ILIKE %s)
             GROUP BY month_num, TO_CHAR(donated_at, 'Mon')
             ORDER BY month_num
-        """, (ngo_id,))
+        """, (ngo_id, year, category_value, category_value))
         monthly_donations_raw = cur.fetchall()
 
         # Get monthly utilizations
@@ -57,11 +68,13 @@ def get_ngo_reports():
                 EXTRACT(MONTH FROM u.utilized_at) as month_num,
                 COALESCE(SUM(u.amount_utilized), 0) as utilized
             FROM utilizations u
+            LEFT JOIN donations d ON u.donation_id = d.donation_id
             WHERE u.ngo_id = %s 
-                AND EXTRACT(YEAR FROM u.utilized_at) = EXTRACT(YEAR FROM CURRENT_DATE)
+                AND EXTRACT(YEAR FROM u.utilized_at) = %s
+                AND (%s IS NULL OR d.purpose ILIKE %s)
             GROUP BY month_num
             ORDER BY month_num
-        """, (ngo_id,))
+        """, (ngo_id, year, category_value, category_value))
         monthly_utilized_raw = cur.fetchall()
 
         # Combine monthly data
@@ -83,10 +96,12 @@ def get_ngo_reports():
             FROM donations dn
             JOIN donors d ON dn.donor_id = d.donor_id
             WHERE dn.ngo_id = %s
+                AND EXTRACT(YEAR FROM dn.donated_at) = %s
+                AND (%s IS NULL OR dn.purpose ILIKE %s)
             GROUP BY d.name
             ORDER BY amount DESC
             LIMIT 6
-        """, (ngo_id,))
+        """, (ngo_id, year, category_value, category_value))
         donor_data = cur.fetchall()
 
         # Calculate percentages for donors
@@ -110,10 +125,12 @@ def get_ngo_reports():
             FROM donations d
             LEFT JOIN utilizations u ON d.donation_id = u.donation_id
             WHERE d.ngo_id = %s
+                AND EXTRACT(YEAR FROM d.donated_at) = %s
+                AND (%s IS NULL OR d.purpose ILIKE %s)
             GROUP BY d.purpose
             ORDER BY amount DESC
             LIMIT 5
-        """, (ngo_id,))
+        """, (ngo_id, year, category_value, category_value))
         category_data = cur.fetchall()
 
         # Calculate percentages for categories
@@ -138,10 +155,12 @@ def get_ngo_reports():
                 COUNT(DISTINCT donor_id) as donors
             FROM donations
             WHERE ngo_id = %s
-                AND donated_at >= CURRENT_DATE - INTERVAL '3 years'
+                AND donated_at >= (DATE_TRUNC('year', to_date(%s::text, 'YYYY')) - INTERVAL '2 years')
+                AND donated_at < DATE_TRUNC('year', to_date(%s::text, 'YYYY')) + INTERVAL '1 year'
+                AND (%s IS NULL OR purpose ILIKE %s)
             GROUP BY year
             ORDER BY year
-        """, (ngo_id,))
+        """, (ngo_id, year, year, category_value, category_value))
         yearly_donations = cur.fetchall()
 
         # Get yearly utilization
@@ -149,12 +168,15 @@ def get_ngo_reports():
             SELECT 
                 EXTRACT(YEAR FROM utilized_at)::text as year,
                 COALESCE(SUM(amount_utilized), 0) as utilized
-            FROM utilizations
-            WHERE ngo_id = %s
-                AND utilized_at >= CURRENT_DATE - INTERVAL '3 years'
+            FROM utilizations u
+            LEFT JOIN donations d ON u.donation_id = d.donation_id
+            WHERE u.ngo_id = %s
+                AND u.utilized_at >= (DATE_TRUNC('year', to_date(%s::text, 'YYYY')) - INTERVAL '2 years')
+                AND u.utilized_at < DATE_TRUNC('year', to_date(%s::text, 'YYYY')) + INTERVAL '1 year'
+                AND (%s IS NULL OR d.purpose ILIKE %s)
             GROUP BY year
             ORDER BY year
-        """, (ngo_id,))
+        """, (ngo_id, year, year, category_value, category_value))
         yearly_utilized = cur.fetchall()
 
         # Combine yearly data
@@ -179,16 +201,19 @@ def get_ngo_reports():
                 COUNT(*) as donation_count
             FROM donations
             WHERE ngo_id = %s
-                AND EXTRACT(YEAR FROM donated_at) = EXTRACT(YEAR FROM CURRENT_DATE)
-        """, (ngo_id,))
+                AND EXTRACT(YEAR FROM donated_at) = %s
+                AND (%s IS NULL OR purpose ILIKE %s)
+        """, (ngo_id, year, category_value, category_value))
         summary = cur.fetchone()
 
         cur.execute("""
-            SELECT COALESCE(SUM(amount_utilized), 0) as total_utilized
-            FROM utilizations
-            WHERE ngo_id = %s
-                AND EXTRACT(YEAR FROM utilized_at) = EXTRACT(YEAR FROM CURRENT_DATE)
-        """, (ngo_id,))
+            SELECT COALESCE(SUM(u.amount_utilized), 0) as total_utilized
+            FROM utilizations u
+            LEFT JOIN donations d ON u.donation_id = d.donation_id
+            WHERE u.ngo_id = %s
+                AND EXTRACT(YEAR FROM u.utilized_at) = %s
+                AND (%s IS NULL OR d.purpose ILIKE %s)
+        """, (ngo_id, year, category_value, category_value))
         util_summary = cur.fetchone()
 
         # Calculate previous year for comparison
@@ -196,8 +221,9 @@ def get_ngo_reports():
             SELECT COALESCE(SUM(amount), 0) as prev_total
             FROM donations
             WHERE ngo_id = %s
-                AND EXTRACT(YEAR FROM donated_at) = EXTRACT(YEAR FROM CURRENT_DATE) - 1
-        """, (ngo_id,))
+                AND EXTRACT(YEAR FROM donated_at) = %s - 1
+                AND (%s IS NULL OR purpose ILIKE %s)
+        """, (ngo_id, year, category_value, category_value))
         prev_year = cur.fetchone()
 
         total_donations = float(summary['total_donations'])

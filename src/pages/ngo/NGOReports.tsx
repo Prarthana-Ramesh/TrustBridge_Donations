@@ -56,10 +56,11 @@ function NGOReports({ }: NGOReportsProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ReportsData | null>(null);
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
   useEffect(() => {
     loadReports();
-  }, [token]);
+  }, [token, selectedYear, selectedCategory]);
 
   const loadReports = async () => {
     setLoading(true);
@@ -68,7 +69,11 @@ function NGOReports({ }: NGOReportsProps) {
       const headers: any = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const response = await fetch('/api/ngo-analytics/reports', { headers });
+      const params = new URLSearchParams({
+        year: selectedYear,
+        category: selectedCategory,
+      });
+      const response = await fetch(`${API_BASE_URL}/api/ngo-analytics/reports?${params.toString()}`, { headers });
       
       if (!response.ok) {
         throw new Error('Failed to fetch reports');

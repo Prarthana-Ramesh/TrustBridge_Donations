@@ -3,6 +3,7 @@ from psycopg2.extras import RealDictCursor
 from db import get_db
 from jwt_utils import decode_jwt
 from datetime import datetime
+from blockchain import trustbridge_blockchain
 
 utilization_bp = Blueprint("utilization", __name__, url_prefix="/api/utilization")
 
@@ -365,6 +366,42 @@ def add_utilization():
         conn = get_db()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
+        # Get the donation amount
+        cur.execute("SELECT amount FROM donations WHERE donation_id = %s AND ngo_id = %s", 
+                   (donation_id, ngo_id))
+        donation = cur.fetchone()
+        
+        if not donation:
+            cur.close()
+            conn.close()
+            return jsonify({"error": "Donation not found or does not belong to this NGO"}), 404
+        
+        total_donation = float(donation["amount"])
+        
+        # Get sum of already utilized amounts for this donation
+        cur.execute(
+            "SELECT COALESCE(SUM(amount_utilized), 0) as total_utilized "
+            "FROM utilizations WHERE donation_id = %s",
+            (donation_id,)
+        )
+        util_result = cur.fetchone()
+        already_utilized = float(util_result["total_utilized"]) if util_result else 0
+        
+        # Calculate remaining amount
+        remaining = total_donation - already_utilized
+        
+        # Validate that new utilization doesn't exceed remaining
+        if float(amount_utilized) > remaining:
+            cur.close()
+            conn.close()
+            return jsonify({
+                "error": "Utilization amount exceeds remaining donation amount",
+                "total_donation": total_donation,
+                "already_utilized": already_utilized,
+                "remaining": remaining,
+                "requested": float(amount_utilized)
+            }), 400
+        
         cur.execute(
             "INSERT INTO utilizations (ngo_id, donation_id, project_id, amount_utilized, purpose, "
             "beneficiaries, location, utilized_at) "
@@ -377,6 +414,22 @@ def add_utilization():
         conn.commit()
         cur.close()
         conn.close()
+
+        # Add to blockchain
+        try:
+            trustbridge_blockchain.add_block({
+                "type": "utilization",
+                "utilization_id": str(utilization_id),
+                "ngo_id": str(ngo_id),
+                "donation_id": str(donation_id),
+                "project_id": str(project_id) if project_id else None,
+                "amount_utilized": float(amount_utilized),
+                "purpose": purpose,
+                "beneficiaries": beneficiaries,
+                "location": location
+            })
+        except Exception as e:
+            print(f"Warning: Failed to add utilization to blockchain: {str(e)}")
 
         return jsonify({"message": "Utilization record added successfully", "utilization_id": utilization_id}), 201
 

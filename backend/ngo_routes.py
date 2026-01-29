@@ -38,17 +38,34 @@ def get_ngo_list():
         
         ngo_list = []
         for ngo in ngos_data:
+            ngo_id = ngo.get("ngo_id")
+            funds_received = float(ngo.get("funds_received")) if ngo.get("funds_received") else 0
+            
+            # Get actual utilized funds for this NGO
+            cur.execute(
+                "SELECT COALESCE(SUM(amount_utilized), 0) as total_utilized FROM utilizations WHERE ngo_id = %s",
+                (ngo_id,)
+            )
+            util_result = cur.fetchone()
+            utilized_funds = float(util_result["total_utilized"]) if util_result else 0
+            
+            # Calculate utilization percentage
+            utilized_percent = 0
+            if funds_received > 0:
+                utilized_percent = int((utilized_funds / funds_received) * 100)
+            
             ngo_list.append({
-                "ngo_id": ngo.get("ngo_id"),
+                "ngo_id": ngo_id,
                 "name": ngo.get("name"),
                 "sector": ngo.get("category") or "General",
                 "location": f"{ngo.get('city') or 'Unknown'}, {ngo.get('state') or 'India'}",
                 "description": ngo.get("mission") or "Making a difference in the community",
-                "fundsReceived": float(ngo.get("funds_received")) if ngo.get("funds_received") else 0,
-                "utilized": 85,  # Placeholder - would need to calculate from utilizations table
+                "fundsReceived": funds_received,
+                "utilized": utilized_percent,
+                "utilizedAmount": utilized_funds,
                 "beneficiaries": ngo.get("donor_count") or 0,
                 "projects": ngo.get("donation_count") or 0,
-                "rating": 4.5,  # Placeholder - would need rating system
+                "rating": 4.5,
                 "phone": ngo.get("phone"),
                 "registration_number": ngo.get("registration_number")
             })

@@ -4,6 +4,7 @@ import DonorNavbar from './components/DonorNavbar';
 import NGONavbar from './components/NGONavbar';
 import Footer from './components/Footer';
 import UserLanding from './pages/user/UserLanding';
+import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
 import Donations from './pages/Donations';
 import Utilization from './pages/Utilization';
@@ -29,15 +30,17 @@ import { useAuth } from './pages/AuthContext';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
-  const [selectedId, setSelectedId] = useState<number | undefined>(undefined);
+  const [selectedId, setSelectedId] = useState<string | number | undefined>(undefined);
   const { isAuthenticated, userRole } = useAuth();
 
-  const handleNavigate = (page: string, id?: number) => {
+  const handleNavigate = (page: string, id?: string | number) => {
     setCurrentPage(page);
     if (id !== undefined) {
       setSelectedId(id);
     }
   };
+
+  const handleNavigateString = (page: string, id?: string) => handleNavigate(page, id);
 
   const renderPage = () => {
     // Show login page
@@ -53,11 +56,21 @@ function App() {
         case 'donor-ngos':
           return <NGOListing onNavigate={handleNavigate} />;
         case 'donor-ngo-details':
-          return <NGODetails onNavigate={handleNavigate} ngoId={selectedId} />;
+          return (
+            <NGODetails
+              onNavigate={handleNavigate}
+              ngoId={selectedId !== undefined ? Number(selectedId) : undefined}
+            />
+          );
         case 'donor-donations':
           return <DonationsPage onNavigate={handleNavigate} />;
         case 'donor-utilization':
-          return <UtilizationTracking onNavigate={handleNavigate} donationId={selectedId} />;
+          return (
+            <UtilizationTracking
+              onNavigate={handleNavigate}
+              donationId={selectedId !== undefined ? Number(selectedId) : undefined}
+            />
+          );
         case 'donor-reports':
           return <ReportsAnalytics onNavigate={handleNavigate} />;
         case 'donor-make-donation':
@@ -73,9 +86,9 @@ function App() {
         case 'ngo-dashboard':
           return <NGODashboard onNavigate={handleNavigate} />;
         case 'ngo-donor-management':
-          return <DonorManagement onNavigate={handleNavigate} />;
+          return <DonorManagement onNavigate={handleNavigateString} />;
         case 'ngo-donation-records':
-          return <DonationRecords onNavigate={handleNavigate} />;
+          return <DonationRecords onNavigate={handleNavigateString} />;
         case 'ngo-utilization':
           return <FundUtilization onNavigate={handleNavigate} />;
         case 'ngo-funding-request':
