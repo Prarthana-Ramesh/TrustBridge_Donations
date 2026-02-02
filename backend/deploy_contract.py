@@ -50,8 +50,14 @@ def deploy_contract():
     print("="*70)
     
     # Connect to Ganache
-    GANACHE_URL = 'http://127.0.0.1:7545'
-    w3 = Web3(Web3.HTTPProvider(GANACHE_URL))
+    # GANACHE_URL = 'http://127.0.0.1:7545'
+    # w3 = Web3(Web3.HTTPProvider(GANACHE_URL))
+    GANACHE_URL = os.getenv("GANACHE_URL")  # may be None
+
+    if GANACHE_URL:
+        w3 = Web3(Web3.HTTPProvider(GANACHE_URL))
+    else:
+        w3 = None
     
     if not w3.is_connected():
         print(f"\n❌ Error: Cannot connect to Ganache at {GANACHE_URL}")

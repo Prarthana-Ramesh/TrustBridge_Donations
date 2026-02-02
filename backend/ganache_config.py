@@ -7,11 +7,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Ganache connection configuration
-GANACHE_URL = os.environ.get('GANACHE_URL', 'http://127.0.0.1:7545')
-CONTRACT_ADDRESS = os.environ.get('CONTRACT_ADDRESS', None)
+GANACHE_URL = os.getenv("GANACHE_URL")  # may be None
+CONTRACT_ADDRESS = os.getenv('CONTRACT_ADDRESS', None)
 
-# Connect to Ganache
-w3 = Web3(Web3.HTTPProvider(GANACHE_URL))
+if GANACHE_URL:
+    w3 = Web3(Web3.HTTPProvider(GANACHE_URL))
+else:
+    w3 = None
 
 # Load Contract ABI from compiled file
 def load_contract_abi():
