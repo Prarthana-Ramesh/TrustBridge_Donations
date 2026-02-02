@@ -54,8 +54,8 @@ class Blockchain:
     def __init__(self, difficulty: int = 2, use_ganache: bool = True):
         self.chain: List[Block] = []
         self.difficulty = difficulty
-        self.use_ganache = use_ganache and CONTRACT_ADDRESS is not None
-        
+        # self.use_ganache = use_ganache and CONTRACT_ADDRESS is not None
+        self.use_ganache = False
         if self.use_ganache:
             try:
                 # Load existing blocks from Ganache
