@@ -5,3 +5,4 @@ flask-cors
 web3==6.11.3
 python-dotenv
 py-solc-x==2.0.2
+gunicorn
