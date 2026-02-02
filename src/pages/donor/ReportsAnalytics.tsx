@@ -1,6 +1,7 @@
 import { TrendingUp, DollarSign, PieChart, BarChart3, Download, Calendar, Loader, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
+import API_BASE_URL from '../../api';
 
 interface ReportsAnalyticsProps {
   onNavigate: (page: string) => void;
@@ -67,7 +68,7 @@ function ReportsAnalytics({}: ReportsAnalyticsProps) {
       const headers: any = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const response = await fetch('/api/donor-analytics/reports', { headers });
+      const response = await fetch(`${API_BASE_URL}/api/donor-analytics/reports`, { headers });
       
       if (!response.ok) {
         throw new Error('Failed to fetch reports');

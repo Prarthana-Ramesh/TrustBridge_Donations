@@ -1,6 +1,7 @@
 import { Building2, Search, TrendingUp, MapPin, Filter } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
+import API_BASE_URL from '../../api';
 
 interface NGOListingProps {
   onNavigate: (page: string, ngoId?: number) => void;
@@ -35,7 +36,7 @@ function NGOListing({ onNavigate }: NGOListingProps) {
 
         const authToken = ctxToken || localStorage.getItem('token');
         
-        const response = await fetch('http://localhost:5000/api/ngo/list', {
+        const response = await fetch(`${API_BASE_URL}/api/ngo/list`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',

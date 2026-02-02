@@ -1,5 +1,6 @@
 import { Building2, MapPin, TrendingUp, Heart, ArrowLeft, Calendar, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import API_BASE_URL from '../../api';
 
 type ApiNgo = {
   ngo_id: number;
@@ -53,7 +54,6 @@ function NGODetails({ onNavigate, ngoId = 1 }: NGODetailsProps) {
   const [utilizations, setUtilizations] = useState<UtilizationRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
   useEffect(() => {
     const controller = new AbortController();

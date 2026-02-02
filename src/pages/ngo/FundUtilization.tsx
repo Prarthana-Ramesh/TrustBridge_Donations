@@ -1,6 +1,7 @@
 import { TrendingUp, Save, Plus, X, Calendar, FileText, Users, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
+import API_BASE_URL from '../../api';
 
 interface FundUtilizationProps {
   onNavigate: (page: string) => void;
@@ -80,9 +81,9 @@ function FundUtilization({ onNavigate: _onNavigate }: FundUtilizationProps) {
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
       const [projectsRes, donationsRes, recordsRes] = await Promise.all([
-        fetch('/api/utilization/projects', { headers }),
-        fetch('/api/utilization/donations', { headers }),
-        fetch('/api/utilization/records', { headers }),
+        fetch(`${API_BASE_URL}/api/utilization/projects`, { headers }),
+        fetch(`${API_BASE_URL}/api/utilization/donations`, { headers }),
+        fetch(`${API_BASE_URL}/api/utilization/records`, { headers }),
       ]);
 
       if (!projectsRes.ok || !donationsRes.ok || !recordsRes.ok) {
@@ -120,7 +121,7 @@ function FundUtilization({ onNavigate: _onNavigate }: FundUtilizationProps) {
   const handleAddProject = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/utilization/add-project', {
+      const response = await fetch(`${API_BASE_URL}/api/utilization/add-project`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -151,7 +152,7 @@ function FundUtilization({ onNavigate: _onNavigate }: FundUtilizationProps) {
   const handleAddUtilization = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/utilization/add-utilization', {
+      const response = await fetch(`${API_BASE_URL}/api/utilization/add-utilization`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

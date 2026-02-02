@@ -1,6 +1,7 @@
 import { DollarSign, Calendar, User, Download, Search, CheckCircle, Clock, AlertCircle, Loader } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
+import API_BASE_URL from '../../api';
 
 interface DonationRecordsProps {
   onNavigate: (page: string, donationId?: string) => void;
@@ -47,7 +48,7 @@ function DonationRecords({ onNavigate }: DonationRecordsProps) {
       const headers: any = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const response = await fetch('/api/donations/records', { headers });
+      const response = await fetch(`${API_BASE_URL}/api/donations/records`, { headers });
       
       if (!response.ok) {
         throw new Error('Failed to fetch donation records');

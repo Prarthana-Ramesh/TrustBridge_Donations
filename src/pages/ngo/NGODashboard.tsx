@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../AuthContext';
 import { DollarSign, Users, TrendingUp, FolderOpen, Bell, Heart, ArrowRight, Clock } from 'lucide-react';
+import API_BASE_URL from '../../api';
 
 interface NGODashboardProps {
   onNavigate: (page: string) => void;
@@ -32,7 +33,7 @@ function NGODashboard({ onNavigate }: NGODashboardProps) {
       const headers: any = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
       console.debug('NGODashboard - fetch headers', headers);
-      const res = await fetch('/api/ngo/dashboard', { headers });
+      const res = await fetch(`${API_BASE_URL}/api/ngo/dashboard`, { headers });
       if (!res.ok) {
         const text = await res.text();
         throw new Error(text || 'Failed to fetch dashboard data');

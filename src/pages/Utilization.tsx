@@ -1,5 +1,6 @@
 import { Search, Filter, Loader } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import API_BASE_URL from '../api';
 
 interface Utilization {
   utilization_id: string;
@@ -54,7 +55,7 @@ function Utilization() {
     const fetchUtilizations = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/utilization/records');
+        const response = await fetch(`${API_BASE_URL}/api/utilization/records`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch utilization records');

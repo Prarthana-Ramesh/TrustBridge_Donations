@@ -1,6 +1,7 @@
 import { DollarSign, Calendar, Building2, Filter, Download, Search } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
+import API_BASE_URL from '../../api';
 
 interface DonationsPageProps {
   onNavigate: (page: string, donationId?: number) => void;
@@ -49,7 +50,7 @@ function DonationsPage({ onNavigate }: DonationsPageProps) {
           return;
         }
 
-        const response = await fetch('http://localhost:5000/api/donations/donor/history', {
+        const response = await fetch(`${API_BASE_URL}/api/donations/donor/history`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${authToken}`,

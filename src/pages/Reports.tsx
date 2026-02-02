@@ -1,5 +1,6 @@
 import { BarChart3, PieChart, TrendingUp, Download, Loader } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import API_BASE_URL from '../api';
 
 interface MonthlyTrend {
   month: string;
@@ -54,7 +55,7 @@ function Reports() {
     const fetchReports = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/reports/overall');
+        const response = await fetch(`${API_BASE_URL}/api/reports/overall`);
         if (!response.ok) {
           throw new Error('Failed to fetch reports');
         }

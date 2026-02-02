@@ -1,6 +1,7 @@
 import { BarChart3, TrendingUp, Calendar, DollarSign, Users, Download, PieChart, Loader, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
+import API_BASE_URL from '../../api';
 
 interface NGOReportsProps {
   onNavigate: (page: string) => void;
@@ -56,7 +57,6 @@ function NGOReports({ }: NGOReportsProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ReportsData | null>(null);
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
   useEffect(() => {
     loadReports();

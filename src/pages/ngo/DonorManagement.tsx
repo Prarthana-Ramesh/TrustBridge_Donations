@@ -1,6 +1,7 @@
 import { Users, Search, Mail, Phone, Calendar, DollarSign, TrendingUp, Eye, Loader, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
+import API_BASE_URL from '../../api';
 
 interface DonorManagementProps {
   onNavigate: (page: string, donorId?: string) => void;
@@ -66,7 +67,7 @@ function DonorManagement({ }: DonorManagementProps) {
       const headers: any = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const response = await fetch('/api/donors/list', { headers });
+      const response = await fetch(`${API_BASE_URL}/api/donors/list`, { headers });
       
       if (!response.ok) {
         throw new Error('Failed to fetch donors');
@@ -87,7 +88,7 @@ function DonorManagement({ }: DonorManagementProps) {
       const headers: any = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const response = await fetch(`/api/donors/${donorId}/history`, { headers });
+      const response = await fetch(`${API_BASE_URL}/api/donors/${donorId}/history`, { headers });
       
       if (!response.ok) {
         throw new Error('Failed to fetch donor details');

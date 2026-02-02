@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowRight, ArrowLeft, CheckCircle, User, Phone, MapPin, Building2, CreditCard, Heart, FileText, Shield } from 'lucide-react';
 import { useAuth } from '../AuthContext';
+import API_BASE_URL from '../../api';
 
 interface MakeDonationProps {
   onNavigate: (page: string) => void;
@@ -110,7 +111,7 @@ function MakeDonation({ onNavigate }: MakeDonationProps) {
         purpose: formData.donationPurpose,
       };
 
-      const response = await fetch('http://localhost:5000/api/donations/create', {
+      const response = await fetch(`${API_BASE_URL}/api/donations/create`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -152,7 +153,7 @@ function MakeDonation({ onNavigate }: MakeDonationProps) {
       try {
         const authToken = ctxToken || localStorage.getItem('token');
         
-        const response = await fetch('http://localhost:5000/api/ngo/list', {
+        const response = await fetch(`${API_BASE_URL}/api/ngo/list`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',

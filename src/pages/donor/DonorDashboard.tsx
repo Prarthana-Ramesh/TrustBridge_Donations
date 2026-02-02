@@ -1,6 +1,7 @@
 import { DollarSign, Users, Building2, Heart, TrendingUp, ArrowRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
+import API_BASE_URL from '../../api';
 
 interface DonorDashboardProps {
   onNavigate: (page: string) => void;
@@ -70,7 +71,7 @@ function DonorDashboard({ onNavigate }: DonorDashboardProps) {
         }
 
         // Fetch donor analytics data
-        const analyticsResponse = await fetch('http://localhost:5000/api/donor-analytics/reports', {
+        const analyticsResponse = await fetch(`${API_BASE_URL}/api/donor-analytics/reports`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${authToken}`,
@@ -97,7 +98,7 @@ function DonorDashboard({ onNavigate }: DonorDashboardProps) {
         setTopNGOs(analyticsData.donations_by_ngo.slice(0, 3));
 
         // Fetch donor donation history for recent donations
-        const donorHistoryResponse = await fetch('http://localhost:5000/api/donations/donor/history', {
+        const donorHistoryResponse = await fetch(`${API_BASE_URL}/api/donations/donor/history`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${authToken}`,

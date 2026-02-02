@@ -1,5 +1,6 @@
 import { Heart, Shield, TrendingUp, Users, CheckCircle, ArrowRight, Globe, Target, Award, Link2, Lock, Clock } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import API_BASE_URL from '../../api';
 
 interface UserLandingProps {
   onNavigate: (page: string) => void;
@@ -82,7 +83,6 @@ function UserLanding({ onNavigate }: UserLandingProps) {
   // Fetch NGO data from backend
   useEffect(() => {
     const controller = new AbortController();
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
     async function loadNgos() {
       try {

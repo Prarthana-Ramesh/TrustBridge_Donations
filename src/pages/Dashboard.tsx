@@ -1,5 +1,6 @@
 import { DollarSign, TrendingUp, Users, Activity, Loader, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import API_BASE_URL from '../api';
 
 interface DashboardStats {
   total_donations: number;
@@ -54,7 +55,7 @@ function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/admin/dashboard');
+      const response = await fetch(`${API_BASE_URL}/api/admin/dashboard`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch dashboard data');

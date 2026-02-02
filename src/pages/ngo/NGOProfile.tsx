@@ -1,6 +1,7 @@
 import { Building2, Mail, Phone, MapPin, Globe, Edit, Save, X, CheckCircle, Users, Award, Target, Loader, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext';
+import API_BASE_URL from '../../api';
 
 interface NGOProfileProps {
   onNavigate: (page: string) => void;
@@ -70,7 +71,7 @@ function NGOProfile({ }: NGOProfileProps) {
       const headers: any = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const response = await fetch('/api/profile/ngo', { headers });
+      const response = await fetch(`${API_BASE_URL}/api/profile/ngo`, { headers });
       
       if (!response.ok) {
         throw new Error('Failed to fetch profile');
@@ -99,7 +100,7 @@ function NGOProfile({ }: NGOProfileProps) {
       };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const response = await fetch('/api/profile/ngo', {
+      const response = await fetch(`${API_BASE_URL}/api/profile/ngo`, {
         method: 'POST',
         headers,
         body: JSON.stringify(profileData),

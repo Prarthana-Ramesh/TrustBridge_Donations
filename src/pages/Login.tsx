@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { UserCircle, Mail, Lock, User, Building, Heart, Shield } from 'lucide-react';
 import { useAuth } from './AuthContext';
+import API_BASE_URL from '../api';
 
 interface LoginProps {
   onNavigate: (page: string) => void;
@@ -75,8 +76,8 @@ function Login({ onNavigate }: LoginProps) {
   try {
     // 2️⃣ AUTH API (login / signup)
     const authEndpoint = isSignup
-      ? "/api/auth/signup"
-      : "/api/auth/login";
+      ? `${API_BASE_URL}/api/auth/signup`
+      : `${API_BASE_URL}/api/auth/login`;
 
     const authPayload = {
       email: formData.email,
@@ -112,7 +113,7 @@ function Login({ onNavigate }: LoginProps) {
     if (isSignup) {
       // ---- DONOR PROFILE ----
       if (selectedRole === "donor") {
-        await fetch("/api/profile/donor", {
+        await fetch(`${API_BASE_URL}/api/profile/donor`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -129,7 +130,7 @@ function Login({ onNavigate }: LoginProps) {
 
       // ---- NGO PROFILE ----
       if (selectedRole === "ngo") {
-        await fetch("/api/profile/ngo", {
+        await fetch(`${API_BASE_URL}/api/profile/ngo`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
