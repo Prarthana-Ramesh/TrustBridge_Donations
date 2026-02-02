@@ -49,23 +49,13 @@ class Block:
 
 
 class Blockchain:
-    """Manages the blockchain with Ganache integration"""
+    """Manages the blockchain (local implementation without Ganache)"""
     
-    def __init__(self, difficulty: int = 2, use_ganache: bool = True):
+    def __init__(self, difficulty: int = 2, use_ganache: bool = False):
         self.chain: List[Block] = []
         self.difficulty = difficulty
-        # self.use_ganache = use_ganache and CONTRACT_ADDRESS is not None
-        self.use_ganache = False
-        if self.use_ganache:
-            try:
-                # Load existing blocks from Ganache
-                self._load_from_ganache()
-            except Exception as e:
-                print(f"Warning: Could not load from Ganache: {e}")
-                self.use_ganache = False
-                self.create_genesis_block()
-        else:
-            self.create_genesis_block()
+        self.use_ganache = False  # Always disabled
+        self.create_genesis_block()
     
     def _load_from_ganache(self):
         """Load existing blocks from Ganache smart contract"""
@@ -139,12 +129,6 @@ class Blockchain:
         )
         genesis_block.mine_block(self.difficulty)
         self.chain.append(genesis_block)
-        
-        if self.use_ganache:
-            try:
-                self._save_to_ganache(genesis_block)
-            except Exception as e:
-                print(f"Warning: Could not save genesis block to Ganache: {e}")
     
     def get_latest_block(self) -> Block:
         """Get the most recent block in the chain"""
@@ -161,14 +145,6 @@ class Blockchain:
         )
         new_block.mine_block(self.difficulty)
         self.chain.append(new_block)
-        
-        # Save to Ganache if enabled
-        if self.use_ganache:
-            try:
-                self._save_to_ganache(new_block)
-            except Exception as e:
-                print(f"Warning: Block added locally but failed to save to Ganache: {e}")
-        
         return new_block
     
     def is_chain_valid(self) -> bool:
@@ -197,16 +173,10 @@ class Blockchain:
             "total_blocks": len(self.chain),
             "is_valid": self.is_chain_valid(),
             "difficulty": self.difficulty,
-            "latest_block": self.get_latest_block().to_dict(),
-            "ganache_enabled": self.use_ganache,
-            "ganache_url": w3.provider.endpoint_uri if self.use_ganache else None
+            "latest_block": self.get_latest_block().to_dict()
         }
 
 
-# Global blockchain instance (with Ganache integration)
-try:
-    trustbridge_blockchain = Blockchain(difficulty=2, use_ganache=True)
-    print(f"✓ Blockchain initialized with Ganache integration")
-except Exception as e:
-    print(f"⚠ Blockchain initialized without Ganache: {e}")
-    trustbridge_blockchain = Blockchain(difficulty=2, use_ganache=False)
+# Global blockchain instance (local mode)
+trustbridge_blockchain = Blockchain(difficulty=2, use_ganache=False)
+print(f"✓ Blockchain initialized in local mode")
